@@ -1,5 +1,5 @@
 Java Pretty Good Privacy Jig
-----------------------------
+============================
 
 JPGPJ provides a simple API on top of the [Bouncy Castle](https://www.bouncycastle.org/) Java OpenPGP implementation (which is full and robust implementation of [RFC 4880](https://tools.ietf.org/html/rfc4880), and compatible with other popular PGP implementations such as [GnuPG](https://www.gnupg.org/),  [GPGTools](https://gpgtools.org/), and [Gpg4win](https://www.gpg4win.org/)). The JPGPJ API is limited to file encryption, signing, decryption, and verification; it does not include the ability to generate, update, or sign keys, or to do clearsigning or detached signatures.
 
@@ -43,7 +43,7 @@ gpg --cipher-algo AES --digest-algo SHA256 --compress-algo ZLIB --compress-level
 ```
 
 More Examples
-=============
+-------------
 
 Here's a fancier encryption example, using the [Java Servlet](https://docs.oracle.com/javaee/7/api/javax/servlet/Servlet.html) API to sign and encrypt the text of a servlet's "message" request parameter, and output it with ASCII Armor to the response. It uses the GnuPG 1.4.x-series default algorithms; and while it signs with Alice's key, it encrypts only with Bob's key:
 ```java
@@ -159,37 +159,42 @@ This servlet will produce JSON output like this:
 ```json
 [
     {
-        fileName: "foo.txt.gpg",
-        orginalName: "foo.txt",
-        length: 1234,
-        lastModified: 1234567890,
-        verified: [
+        "fileName": "foo.txt.gpg",
+        "orginalName": "foo.txt",
+        "length": 1234,
+        "lastModified": 1234567890,
+        "verified": [
             {
-                uids: [
+                "uids": [
                     "Alice <alice@example.com>",
                     "Alice (non-commercial) <alice@example.org>"
                 ],
-                shortId: "DEADBEEF",
-                fingerprint: "12341234123412341234123412341234"
+                "shortId": "DEADBEEF",
+                "fingerprint": "12341234123412341234123412341234"
             }
         ]
     },
     {
-        fileName: "bar.txt.gpg",
-        error: "content not signed with a required key"
+        "fileName": "bar.txt.gpg",
+        "error": "content not signed with a required key"
     }
 ]
 ```
 
+More Documentation
+------------------
+
+See the [[wiki pages|Home]] for more details about [[encryption|EncryptingFiles]], [[decryption|DecryptingFiles]], [[keys|KeyRings]], etc. And see the [javadocs](https://justinludwig.github.io/jpgpj/javadoc/) for the full JPGPJ API.
+
 Adding JPGPJ to Your Application
-================================
+--------------------------------
 
 Since Bouncy Castle does all the actual crypto, the Bouncy Castle "Provider" and "OpenPGP/BCPG" jars are required. You can download them from the [Bouncy Castle Latest Releases](https://www.bouncycastle.org/latest_releases.html) page (where you specifically want the `bcprov-jdk15on-154.jar` and `bcpg-jdk15on-154.jar` jar files).
 
 Bouncy Castle is the only dependency of JPGPJ, however, so you only need to add its jar files, and the JPGPJ jar file, to your classpath.
 
 Building from Source
-====================
+--------------------
 
 Assuming you have git installed on your system, you can get the source from GitHub with the following command:
 ```shell
