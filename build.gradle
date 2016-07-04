@@ -1,0 +1,34 @@
+plugins {
+    id 'java'
+    id 'groovy'
+    id 'com.scuilion.syntastic' version '0.3.6-java7'
+}
+
+version = '0.1-SNAPSHOT'
+description = 'Java Pretty Good Privacy Jig'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compile 'org.bouncycastle:bcpg-jdk15on:1.+'
+    compile 'org.codehaus.groovy:groovy-all:2.4.+'
+    testCompile 'org.spockframework:spock-core:1.0-groovy-2.4'
+}
+
+javadoc {
+    options.memberLevel = JavadocMemberLevel.PUBLIC
+}
+
+test {
+    testLogging {
+        /*
+        exceptionFormat 'full'
+        showCauses = true
+        showExceptions = true
+        showStackTraces = true
+        */
+        showStandardStreams = true
+    }
+}
