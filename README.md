@@ -184,7 +184,7 @@ This servlet will produce JSON output like this:
 More Documentation
 ------------------
 
-See the [[wiki pages|Home]] for more details about [[encryption|EncryptingFiles]], [[decryption|DecryptingFiles]], [[keys|KeyRings]], etc. And see the [javadocs](https://justinludwig.github.io/jpgpj/javadoc/) for the full JPGPJ API.
+See the [wiki pages](https://github.com/justinludwig/jpgpj/wiki) for more details about [encryption](https://github.com/justinludwig/jpgpj/wiki/EncryptingFiles), [decryption](https://github.com/justinludwig/jpgpj/wiki/DecryptingFiles), [keys](https://github.com/justinludwig/jpgpj/wiki/KeyRings), etc. And see the [javadocs](https://justinludwig.github.io/jpgpj/javadoc/) for the full JPGPJ API.
 
 Adding JPGPJ to Your Application
 --------------------------------
