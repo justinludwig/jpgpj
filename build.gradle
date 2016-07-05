@@ -21,6 +21,7 @@ dependencies {
 }
 
 javadoc {
+    title = "JPGPJ $version API"
     options.memberLevel = JavadocMemberLevel.PUBLIC
 }
 
