@@ -189,6 +189,32 @@ See the [wiki pages](https://github.com/justinludwig/jpgpj/wiki) for more detail
 Adding JPGPJ to Your Application
 --------------------------------
 
+### Via Maven
+
+Add the following dependency to your `pom.xml` file:
+
+```xml
+<dependency>
+    <groupId>org.c02e.jpgpj</groupId>
+    <artifactId>jpgpj</artifactId>
+    <version>0.1</version>
+</dependency>
+```
+
+### Via Gradle
+
+Add the following dependency to your `build.gradle` file:
+
+```gradle
+dependencies {
+    ...
+    compile 'org.c02e.jpgpj:jpgpj:0.1'
+    ...
+}
+```
+
+### Manually
+
 Since Bouncy Castle does all the actual crypto, the Bouncy Castle "Provider" and "OpenPGP/BCPG" jars are required. You can download them from the [Bouncy Castle Latest Releases](https://www.bouncycastle.org/latest_releases.html) page (where you specifically want the `bcprov-jdk15on-154.jar` and `bcpg-jdk15on-154.jar` jar files).
 
 Bouncy Castle is the only dependency of JPGPJ, however, so you only need to add its jar files, and the JPGPJ jar file, to your classpath.
