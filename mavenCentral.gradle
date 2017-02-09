@@ -1,0 +1,108 @@
+plugins {
+    id 'java'
+    id 'groovy'
+    id 'com.scuilion.syntastic' version '0.3.6-java7'
+    id 'maven'
+}
+
+group = 'org.c02e.jpgpj'
+archivesBaseName = 'jpgpj'
+version = '0.1'
+description = 'Java Pretty Good Privacy Jig'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compile 'org.bouncycastle:bcpg-jdk15on:1.54'
+    testCompile 'org.codehaus.groovy:groovy-all:2.4.7'
+    testCompile 'org.spockframework:spock-core:1.0-groovy-2.4'
+}
+
+javadoc {
+    title = "JPGPJ $version API"
+    options.memberLevel = JavadocMemberLevel.PUBLIC
+}
+
+task sourcesJar(type: Jar, dependsOn: classes) {
+    classifier = 'sources'
+    from sourceSets.main.allSource
+}
+
+task javadocJar(type: Jar, dependsOn: javadoc) {
+    classifier = 'javadoc'
+    from javadoc
+}
+
+artifacts {
+    archives sourcesJar
+    archives javadocJar
+}
+
+uploadArchives {
+    repositories {
+        mavenDeployer {
+            beforeDeployment { MavenDeployment deployment ->
+                deployment.artifacts.collect { artifact ->
+                    def input = artifact.file.path
+                    def output = "${input}.asc"
+
+                    println "sign $input ..."
+                    def cmd = [
+                        'gpg2', '--yes',
+                        '-u', 'justin@ldwg.us',
+                        '-o', output,
+                        '-ab', input,
+                    ]
+                    def proc = cmd.execute()
+                    proc.consumeProcessOutput System.out, System.err
+                    def result = proc.waitFor()
+                    if (result)
+                        throw new GradleException("result $result for $cmd")
+
+                    [
+                        getClassifier: { -> artifact.classifier },
+                        getDate: { -> artifact.date },
+                        getExtension: { -> "${artifact.extension}.asc" as String },
+                        getName: { -> artifact.name },
+                        getType: { -> "${artifact.extension}.asc" as String },
+                        getFile: { -> new File(output) },
+                        getBuildDependencies: { -> [] },
+                    ] as PublishArtifact
+                }.each { deployment.addArtifact it }
+            }
+
+            repository(url: 'https://oss.sonatype.org/service/local/staging/deploy/maven2/') {
+                authentication userName: ossrhUsername, password: ossrhPassword
+            }
+            snapshotRepository(url: 'https://oss.sonatype.org/content/repositories/snapshots/') {
+                authentication userName: ossrhUsername, password: ossrhPassword
+            }
+
+            pom.project {
+                name 'Java Pretty Good Privacy Jig'
+                description 'JPGPJ is a simple API on top of the Bouncy Castle Java OpenPGP implementation.'
+                url 'https://github.com/justinludwig/jpgpj'
+                scm {
+                    connection 'scm:git:git@github.com:justinludwig/jpgpj.git'
+                    developerConnection 'scm:git:git@github.com:justinludwig/jpgpj.git'
+                    url 'git@github.com:justinludwig/jpgpj.git'
+                }
+                licenses {
+                    license {
+                        name 'MIT License'
+                        url 'http://www.opensource.org/licenses/mit-license.php'
+                    }
+                }
+                developers {
+                    developer {
+                        id 'justinludwig'
+                        name 'Justin Ludwig'
+                        email 'justin@ldwg.us'
+                    }
+                }
+            }
+        }
+    }
+}
