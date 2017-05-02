@@ -6,7 +6,7 @@ plugins {
 
 group = 'org.c02e.jpgpj'
 archivesBaseName = 'jpgpj'
-version = '0.1'
+version = '0.1.1'
 description = 'Java Pretty Good Privacy Jig'
 
 repositories {
@@ -14,7 +14,7 @@ repositories {
 }
 
 dependencies {
-    compile 'org.bouncycastle:bcpg-jdk15on:1.54'
+    compile 'org.bouncycastle:bcpg-jdk15on:1.56'
     testCompile 'org.codehaus.groovy:groovy-all:2.4.7'
     testCompile 'org.spockframework:spock-core:1.0-groovy-2.4'
 }
