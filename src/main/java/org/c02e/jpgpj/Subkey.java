@@ -5,8 +5,13 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.regex.Pattern;
-
-import org.bouncycastle.openpgp.*;
+import org.bouncycastle.openpgp.PGPException;
+import org.bouncycastle.openpgp.PGPKeyFlags;
+import org.bouncycastle.openpgp.PGPPrivateKey;
+import org.bouncycastle.openpgp.PGPPublicKey;
+import org.bouncycastle.openpgp.PGPSecretKey;
+import org.bouncycastle.openpgp.PGPSignature;
+import org.bouncycastle.openpgp.PGPSignatureSubpacketVector;
 import org.bouncycastle.openpgp.operator.PBESecretKeyDecryptor;
 import org.bouncycastle.openpgp.operator.bc.BcPBESecretKeyDecryptorBuilder;
 import org.bouncycastle.openpgp.operator.bc.BcPGPDigestCalculatorProvider;
@@ -245,11 +250,11 @@ public class Subkey {
         Iterator<PGPSignature> signatures = publicKey.getSignatures();
         while (signatures.hasNext()) {
             PGPSignature signature = signatures.next();
-            PGPSignatureSubpacketVector hashedSubPackets = signature.getHashedSubPackets();
-            
-            if(hashedSubPackets != null) {
+            PGPSignatureSubpacketVector hashedSubPackets =
+                signature.getHashedSubPackets();
+
+            if (hashedSubPackets != null)
                 flags |= hashedSubPackets.getKeyFlags();
-            }
         }
         return flags;
     }
