@@ -12,8 +12,8 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.bouncycastle.bcpg.ArmoredOutputStream;
 import org.bouncycastle.openpgp.PGPCompressedData;
 import org.bouncycastle.openpgp.PGPDataValidationException;
@@ -71,7 +71,8 @@ public class Decryptor {
     protected boolean verificationRequired;
     protected String symmetricPassphrase;
     protected Ring ring;
-    protected Logger log = Logger.getLogger(Decryptor.class.getName());
+    protected Logger log = LoggerFactory.getLogger(Decryptor.class.getName());
+
 
     /** Constructs a decryptor with an empty key ring. */
     public Decryptor() {
@@ -173,8 +174,7 @@ public class Decryptor {
                     output.close();
                     plaintext.delete();
                 } catch (Exception ee) {
-                    log.log(Level.SEVERE, "failed to delete bad output file "
-                        + plaintext, ee);
+                    log.error("failed to delete bad output file {}", plaintext, ee);
                 }
             throw e;
         } finally {
@@ -229,8 +229,8 @@ public class Decryptor {
         while (packets.hasNext()) {
             Object packet = packets.next();
 
-            if (log.isLoggable(Level.FINEST))
-                log.finest("unpack " + packet.getClass());
+            if (log.isTraceEnabled())
+                log.trace("unpack {} ", packet.getClass());
 
             if (packet instanceof PGPMarker) {
                 // no-op
@@ -273,7 +273,7 @@ public class Decryptor {
                 throw new PGPException("unexpected packet: " + packet.getClass());
             }
         }
-        log.finest("unpacked all");
+        log.trace("unpacked all");
 
         // fail if verification required and any signature is bad
         verify(verifiers, meta);
@@ -337,12 +337,12 @@ public class Decryptor {
                             !Util.isEmpty(subkey.passphrase))
                         return decrypt(pke, subkey);
 
-                    else if (log.isLoggable(Level.INFO))
-                        log.info("not using decryption key " + subkey);
+                    else if (log.isInfoEnabled())
+                        log.info("not using decryption key {} ", subkey);
 
                 } else {
-                    if (log.isLoggable(Level.INFO))
-                        log.info("not found decryption key " +
+                    if (log.isInfoEnabled())
+                        log.info("not found decryption key {} ",
                             Util.formatKeyId(pke.getKeyID()));
                 }
 
@@ -364,8 +364,8 @@ public class Decryptor {
         if (data == null || subkey == null)
             throw new DecryptionException("no suitable decryption key found");
 
-        if (log.isLoggable(Level.INFO))
-            log.info("using decryption key " + subkey);
+        if (log.isInfoEnabled())
+            log.info("using decryption key {} ", subkey);
         return data.getDataStream(buildPublicKeyDecryptor(subkey));
     }
 
@@ -431,8 +431,8 @@ public class Decryptor {
             if (!verifier.verify())
                 throw new VerificationException(
                     "bad signature for key " + verifier.key);
-            else if (log.isLoggable(Level.FINE))
-                log.fine("good signature for key " + verifier.key);
+            else if (log.isDebugEnabled())
+                log.debug("good signature for key {} ", verifier.key);
 
             Key key = verifier.getSignedBy();
             for (FileMetadata file : meta)
@@ -549,8 +549,8 @@ public class Decryptor {
 
             key = getRing().findById(s.getKeyID());
             if (key == null) {
-                if (Decryptor.this.log.isLoggable(Level.INFO))
-                    Decryptor.this.log.info("not found verification key " +
+                if (Decryptor.this.log.isInfoEnabled())
+                    Decryptor.this.log.info("not found verification key {} ",
                         Util.formatKeyId(s.getKeyID()));
                 return;
             }
@@ -561,7 +561,7 @@ public class Decryptor {
             else
                 s.init(getVerifierProvider(), subkey.getPublicKey());
 
-            if (Decryptor.this.log.isLoggable(Level.INFO))
+            if (Decryptor.this.log.isInfoEnabled())
                 Decryptor.this.log.info((key == null ? "not " : "") +
                     "using verification key " + subkey);
         }
@@ -571,8 +571,8 @@ public class Decryptor {
 
             key = getRing().findById(s.getKeyID());
             if (key == null) {
-                if (Decryptor.this.log.isLoggable(Level.INFO))
-                    Decryptor.this.log.info("not found verification key " +
+                if (Decryptor.this.log.isInfoEnabled())
+                    Decryptor.this.log.info("not found verification key {}",
                         Util.formatKeyId(s.getKeyID()));
                 return;
             }
@@ -583,7 +583,7 @@ public class Decryptor {
             else
                 s.init(getVerifierProvider(), subkey.getPublicKey());
 
-            if (Decryptor.this.log.isLoggable(Level.INFO))
+            if (Decryptor.this.log.isInfoEnabled())
                 Decryptor.this.log.info((key == null ? "not " : "") +
                     "using verification key " + subkey);
         }
