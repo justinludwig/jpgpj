@@ -1,17 +1,13 @@
 package org.c02e.jpgpj
 
-import java.util.logging.Level
-import java.util.logging.Logger
 import org.bouncycastle.openpgp.PGPException
 import spock.lang.Specification
 
 class EncryptorSpec extends Specification {
 
     /*
-    static {
-        Logger.getLogger('').handlers*.level = Level.FINEST
-        Logger.getLogger('org.c02e.jpgpj.Decryptor').level = Level.FINEST
-        Logger.getLogger('org.c02e.jpgpj.Encryptor').level = Level.FINEST
+    static{
+        System.setProperty(org.slf4j.impl.SimpleLogger.DEFAULT_LOG_LEVEL_KEY, "TRACE");
     }
     */
 
