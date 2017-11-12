@@ -379,8 +379,7 @@ public class Encryptor {
      */
     protected OutputStream encrypt(OutputStream out, FileMetadata meta)
     throws IOException, PGPException {
-        if (log.isTraceEnabled())
-            log.trace("using encryption algorithm {} ", encryptionAlgorithm);
+        log.trace("using encryption algorithm {} ", encryptionAlgorithm);
 
         if (encryptionAlgorithm == EncryptionAlgorithm.Unencrypted)
             return null;
@@ -404,8 +403,7 @@ public class Encryptor {
      */
     protected OutputStream compress(OutputStream out, FileMetadata meta)
     throws IOException, PGPException {
-        if (log.isTraceEnabled())
-            log.trace("using compression algorithm {} - {} ", compressionAlgorithm, compressionLevel);
+        log.trace("using compression algorithm {} - {} ", compressionAlgorithm, compressionLevel);
 
         if (compressionAlgorithm == CompressionAlgorithm.Uncompressed ||
             compressionLevel < 1 || compressionLevel > 9)
@@ -435,8 +433,7 @@ public class Encryptor {
      */
     protected SigningOutputStream sign(OutputStream out, FileMetadata meta)
     throws IOException, PGPException {
-        if (log.isTraceEnabled())
-            log.trace("using signing algorithm {} ", signingAlgorithm);
+        log.trace("using signing algorithm {} ", signingAlgorithm);
 
         if (signingAlgorithm == HashingAlgorithm.Unsigned)
             return null;
@@ -446,8 +443,7 @@ public class Encryptor {
         for (int i = signers.size() - 1; i >= 0; i--) {
             Subkey subkey = signers.get(i).getSigning();
             if (subkey == null || Util.isEmpty(subkey.passphrase)) {
-                if (log.isInfoEnabled())
-                    log.info("not using signing key {}",subkey);
+                log.info("not using signing key {}",subkey);
                 signers.remove(i);
             }
         }
@@ -491,8 +487,7 @@ public class Encryptor {
      */
     protected PublicKeyKeyEncryptionMethodGenerator buildPublicKeyEncryptor(
     Key key) {
-        if (log.isInfoEnabled())
-            log.info("using encryption key {}", key.getEncryption());
+        log.info("using encryption key {}", key.getEncryption());
 
         PGPPublicKey publicKey = key.getEncryption().getPublicKey();
         return new BcPublicKeyKeyEncryptionMethodGenerator(publicKey);
@@ -504,8 +499,7 @@ public class Encryptor {
      */
     protected PBEKeyEncryptionMethodGenerator buildSymmetricKeyEncryptor()
     throws PGPException {
-        if (log.isInfoEnabled())
-            log.info("using symmetric encryption with {} hash, work factor {} ",
+        log.info("using symmetric encryption with {} hash, work factor {} ",
                 keyDerivationAlgorithm, keyDerivationWorkFactor);
 
         int algo = keyDerivationAlgorithm.ordinal();
@@ -522,8 +516,7 @@ public class Encryptor {
     throws PGPException {
         Subkey subkey = key.getSigning();
 
-        if (log.isInfoEnabled())
-            log.info("using signing key {} ", subkey);
+        log.info("using signing key {} ", subkey);
 
         PGPContentSignerBuilder builder = buildSignerBuilder(
             subkey.getPublicKey().getAlgorithm(),
@@ -535,8 +528,7 @@ public class Encryptor {
 
         String uid = key.getSigningUid();
         if (!Util.isEmpty(uid)) {
-            if (log.isDebugEnabled())
-                log.debug("using signing uid {}", uid);
+            log.debug("using signing uid {}", uid);
 
             PGPSignatureSubpacketGenerator signer =
                 new PGPSignatureSubpacketGenerator();

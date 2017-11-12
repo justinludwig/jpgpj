@@ -74,19 +74,25 @@ public class Decryptor {
     protected Logger log = LoggerFactory.getLogger(Decryptor.class.getName());
 
 
-    /** Constructs a decryptor with an empty key ring. */
+    /**
+     * Constructs a decryptor with an empty key ring.
+     */
     public Decryptor() {
         this(new Ring());
     }
 
-    /** Constructs a decryptor with the specified key ring. */
+    /**
+     * Constructs a decryptor with the specified key ring.
+     */
     public Decryptor(Ring ring) {
         verificationRequired = true;
         symmetricPassphrase = "";
         setRing(ring);
     }
 
-    /** Constructs a decryptor with the specified keys. */
+    /**
+     * Constructs a decryptor with the specified keys.
+     */
     public Decryptor(Key... keys) {
         this(new Ring(keys));
     }
@@ -107,22 +113,30 @@ public class Decryptor {
         verificationRequired = x;
     }
 
-    /** Passphrase to use to decrypt with a symmetric key. */
+    /**
+     * Passphrase to use to decrypt with a symmetric key.
+     */
     public String getSymmetricPassphrase() {
         return symmetricPassphrase;
     }
 
-    /** Passphrase to use to decrypt with a symmetric key. */
+    /**
+     * Passphrase to use to decrypt with a symmetric key.
+     */
     public void setSymmetricPassphrase(String x) {
         symmetricPassphrase = x != null ? x : "";
     }
 
-    /** Keys to use for decryption and verification. */
+    /**
+     * Keys to use for decryption and verification.
+     */
     public Ring getRing() {
         return ring;
     }
 
-    /** Keys to use for decryption and verification. */
+    /**
+     * Keys to use for decryption and verification.
+     */
     protected void setRing(Ring x) {
         ring = x != null ? x : new Ring();
     }
@@ -133,28 +147,29 @@ public class Decryptor {
      * verifies its signatures. If a file already exists in the output file's
      * location, it will be deleted. If an exception occurs during decryption,
      * the output file will be deleted.
+     *
      * @param ciphertext File containing a PGP message, in binary or
-     * ASCII Armor format.
-     * @param plaintext Location of the file into which to decrypt the message.
+     *                   ASCII Armor format.
+     * @param plaintext  Location of the file into which to decrypt the message.
      * @return Metadata of original file, and the list of keys that signed
      * the message with a verified signature. The original file metadata
      * values are optional, and may be missing or incorrect.
-     * @throws IOException if an IO error occurs reading from or writing to
-     * the underlying input or output streams.
-     * @throws PGPException if the PGP message is not formatted correctly.
-     * @throws PassphraseException if an incorrect passphrase was supplied
-     * for one of the decryption keys, or as the
-     * {@link #getSymmetricPassphrase()}.
-     * @throws DecryptionException if the message was not encrypted for any
-     * of the keys supplied for decryption.
+     * @throws IOException           if an IO error occurs reading from or writing to
+     *                               the underlying input or output streams.
+     * @throws PGPException          if the PGP message is not formatted correctly.
+     * @throws PassphraseException   if an incorrect passphrase was supplied
+     *                               for one of the decryption keys, or as the
+     *                               {@link #getSymmetricPassphrase()}.
+     * @throws DecryptionException   if the message was not encrypted for any
+     *                               of the keys supplied for decryption.
      * @throws VerificationException if {@link #isVerificationRequired} and
-     * the message was not signed by any of the keys supplied for verification.
+     *                               the message was not signed by any of the keys supplied for verification.
      */
     public FileMetadata decrypt(File ciphertext, File plaintext)
-    throws IOException, PGPException {
+            throws IOException, PGPException {
         if (ciphertext.equals(plaintext))
             throw new IOException("cannot decrypt " + ciphertext +
-                " over itself");
+                    " over itself");
 
         // delete old output file
         plaintext.delete();
@@ -163,9 +178,9 @@ public class Decryptor {
         OutputStream output = null;
         try {
             input = new BufferedInputStream(
-                new FileInputStream(ciphertext), 0x1000);
+                    new FileInputStream(ciphertext), 0x1000);
             output = new BufferedOutputStream(
-                new FileOutputStream(plaintext), 0x1000);
+                    new FileOutputStream(plaintext), 0x1000);
             return decrypt(input, output);
         } catch (Exception e) {
             // delete output file if anything went wrong
@@ -178,8 +193,14 @@ public class Decryptor {
                 }
             throw e;
         } finally {
-            try { output.close(); } catch (Exception e) {}
-            try { input.close(); } catch (Exception e) {}
+            try {
+                output.close();
+            } catch (Exception e) {
+            }
+            try {
+                input.close();
+            } catch (Exception e) {
+            }
         }
     }
 
@@ -191,24 +212,25 @@ public class Decryptor {
      * Note that the full decrypted content will be written to the output stream
      * before the message is verified, so you may want to buffer the content
      * and not write it to its final destination until this method returns.
+     *
      * @param ciphertext PGP message, in binary or ASCII Armor format.
-     * @param plaintext Decrypted content.
+     * @param plaintext  Decrypted content.
      * @return Metadata of original file, and the list of keys that signed
      * the message with a verified signature. The original file metadata
      * values are optional, and may be missing or incorrect.
-     * @throws IOException if an IO error occurs reading from or writing to
-     * the underlying input or output streams.
-     * @throws PGPException if the PGP message is not formatted correctly.
-     * @throws PassphraseException if an incorrect passphrase was supplied
-     * for one of the decryption keys, or as the
-     * {@link #getSymmetricPassphrase()}.
-     * @throws DecryptionException if the message was not encrypted for any
-     * of the keys supplied for decryption.
+     * @throws IOException           if an IO error occurs reading from or writing to
+     *                               the underlying input or output streams.
+     * @throws PGPException          if the PGP message is not formatted correctly.
+     * @throws PassphraseException   if an incorrect passphrase was supplied
+     *                               for one of the decryption keys, or as the
+     *                               {@link #getSymmetricPassphrase()}.
+     * @throws DecryptionException   if the message was not encrypted for any
+     *                               of the keys supplied for decryption.
      * @throws VerificationException if {@link #isVerificationRequired} and
-     * the message was not signed by any of the keys supplied for verification.
+     *                               the message was not signed by any of the keys supplied for verification.
      */
     public FileMetadata decrypt(InputStream ciphertext, OutputStream plaintext)
-    throws IOException, PGPException {
+            throws IOException, PGPException {
         List<FileMetadata> meta = unpack(parse(unarmor(ciphertext)), plaintext);
         if (meta.size() > 1)
             throw new PGPException("content contained more than one file");
@@ -222,15 +244,14 @@ public class Decryptor {
      * writing the decrypted message content into the output stream.
      */
     protected List<FileMetadata> unpack(Iterator packets,
-    OutputStream plaintext) throws IOException, PGPException {
+                                        OutputStream plaintext) throws IOException, PGPException {
         List<FileMetadata> meta = new ArrayList<FileMetadata>();
         List<Verifier> verifiers = new ArrayList<Verifier>();
 
         while (packets.hasNext()) {
             Object packet = packets.next();
 
-            if (log.isTraceEnabled())
-                log.trace("unpack {} ", packet.getClass());
+            log.trace("unpack {} ", packet.getClass());
 
             if (packet instanceof PGPMarker) {
                 // no-op
@@ -245,8 +266,8 @@ public class Decryptor {
                 // when in message header, initialize verifiers for these sigs
                 if (Util.isEmpty(verifiers))
                     verifiers = buildVerifiers(list.iterator());
-                // when in message trailer, match sigs to one-pass sigs
-                // in already initialized verifiers
+                    // when in message trailer, match sigs to one-pass sigs
+                    // in already initialized verifiers
                 else
                     matchSignatures(list.iterator(), verifiers);
 
@@ -285,7 +306,7 @@ public class Decryptor {
      * for which a verification key is available.
      */
     protected List<Verifier> buildVerifiers(Iterator signatures)
-    throws PGPException {
+            throws PGPException {
         ArrayList<Verifier> verifiers = new ArrayList<Verifier>();
         while (signatures.hasNext()) {
             Verifier verifier = null;
@@ -306,7 +327,7 @@ public class Decryptor {
      * Matches the specified trailing signatures to the specified verifiers.
      */
     protected void matchSignatures(Iterator<PGPSignature> signatures,
-    List<Verifier> verifiers) {
+                                   List<Verifier> verifiers) {
         while (signatures.hasNext()) {
             PGPSignature signature = signatures.next();
 
@@ -319,7 +340,7 @@ public class Decryptor {
      * Decrypts the encrypted data as the returned input stream.
      */
     protected InputStream decrypt(Iterator data)
-    throws IOException, PGPException {
+            throws IOException, PGPException {
         PGPPBEEncryptedData pbe = null;
 
         while (data.hasNext()) {
@@ -337,12 +358,10 @@ public class Decryptor {
                             !Util.isEmpty(subkey.passphrase))
                         return decrypt(pke, subkey);
 
-                    else if (log.isInfoEnabled())
-                        log.info("not using decryption key {} ", subkey);
+                    log.info("not using decryption key {} ", subkey);
 
                 } else {
-                    if (log.isInfoEnabled())
-                        log.info("not found decryption key {} ",
+                    log.info("not found decryption key {} ",
                             Util.formatKeyId(pke.getKeyID()));
                 }
 
@@ -360,12 +379,12 @@ public class Decryptor {
      * Decrypts the encrypted data as the returned input stream.
      */
     protected InputStream decrypt(PGPPublicKeyEncryptedData data, Subkey subkey)
-    throws IOException, PGPException {
+            throws IOException, PGPException {
         if (data == null || subkey == null)
             throw new DecryptionException("no suitable decryption key found");
 
-        if (log.isInfoEnabled())
-            log.info("using decryption key {} ", subkey);
+        log.info("using decryption key {} ", subkey);
+
         return data.getDataStream(buildPublicKeyDecryptor(subkey));
     }
 
@@ -373,16 +392,16 @@ public class Decryptor {
      * Decrypts the encrypted data as the returned input stream.
      */
     protected InputStream decrypt(PGPPBEEncryptedData data)
-    throws IOException, PGPException {
+            throws IOException, PGPException {
         if (data == null || Util.isEmpty(symmetricPassphrase))
             throw new DecryptionException("no suitable decryption key found");
 
         try {
             return data.getDataStream(buildSymmetricKeyDecryptor(
-                symmetricPassphrase));
+                    symmetricPassphrase));
         } catch (PGPDataValidationException e) {
             throw new PassphraseException(
-                "incorrect passphrase for symmetric key", e);
+                    "incorrect passphrase for symmetric key", e);
         }
     }
 
@@ -392,14 +411,14 @@ public class Decryptor {
      * with the specified list of verifiers (if verification required).
      */
     protected long copy(InputStream i, OutputStream o,
-    List<Verifier> verifiers) throws IOException, PGPException {
+                        List<Verifier> verifiers) throws IOException, PGPException {
         long total = 0;
         byte[] buf = getCopyBuffer();
         int len = i.read(buf);
 
         if (verificationRequired && Util.isEmpty(verifiers))
             throw new VerificationException(
-                "content not signed with a required key");
+                    "content not signed with a required key");
 
         while (len != -1) {
             total += len;
@@ -424,14 +443,14 @@ public class Decryptor {
      * with verified signatures to the file metadata.
      */
     protected void verify(List<Verifier> verifiers, List<FileMetadata> meta)
-    throws PGPException {
+            throws PGPException {
         if (!verificationRequired) return;
 
         for (Verifier verifier : verifiers) {
             if (!verifier.verify())
                 throw new VerificationException(
-                    "bad signature for key " + verifier.key);
-            else if (log.isDebugEnabled())
+                        "bad signature for key " + verifier.key);
+            else
                 log.debug("good signature for key {} ", verifier.key);
 
             Key key = verifier.getSignedBy();
@@ -445,16 +464,17 @@ public class Decryptor {
      * (to convert ascii-armored content back into binary data).
      */
     protected InputStream unarmor(InputStream stream)
-    throws IOException, PGPException {
+            throws IOException, PGPException {
         return PGPUtil.getDecoderStream(stream);
     }
 
     /**
      * Separates stream into PGP packets.
+     *
      * @see PGPObjectFactory
      */
     protected Iterator parse(InputStream stream)
-    throws IOException, PGPException {
+            throws IOException, PGPException {
         // before BCPG v1.55
         // PGPObjectFactory.iterator() doesn't work for decryption
         // because its next() method prematurely calls nextObject()
@@ -466,6 +486,7 @@ public class Decryptor {
         return new Iterator() {
             boolean checkedNext = false;
             Object nextElement = null;
+
             public boolean hasNext() {
                 if (!checkedNext) {
                     checkedNext = true;
@@ -477,11 +498,13 @@ public class Decryptor {
                 }
                 return nextElement != null;
             }
+
             public Object next() {
                 if (!hasNext()) throw new NoSuchElementException();
                 checkedNext = false;
                 return nextElement;
             }
+
             public void remove() {
                 throw new UnsupportedOperationException();
             }
@@ -499,7 +522,7 @@ public class Decryptor {
      * Builds a symmetric-encryption decryptor for the specified passphrase.
      */
     protected PublicKeyDataDecryptorFactory buildPublicKeyDecryptor(
-    Subkey subkey) throws PGPException {
+            Subkey subkey) throws PGPException {
         PGPPrivateKey privateKey = subkey.getPrivateKey();
         if (privateKey == null)
             throw new PGPException("no private key for " + subkey);
@@ -510,11 +533,11 @@ public class Decryptor {
      * Builds a symmetric-key decryptor for the specified passphrase.
      */
     protected PBEDataDecryptorFactory buildSymmetricKeyDecryptor(
-    String passphrase) {
+            String passphrase) {
         char[] chars = !Util.isEmpty(passphrase) ?
-            passphrase.toCharArray() : new char[0];
+                passphrase.toCharArray() : new char[0];
         return new BcPBEDataDecryptorFactory(chars,
-            new BcPGPDigestCalculatorProvider());
+                new BcPGPDigestCalculatorProvider());
     }
 
     protected byte[] getCopyBuffer() {
@@ -549,8 +572,7 @@ public class Decryptor {
 
             key = getRing().findById(s.getKeyID());
             if (key == null) {
-                if (Decryptor.this.log.isInfoEnabled())
-                    Decryptor.this.log.info("not found verification key {} ",
+                Decryptor.this.log.info("not found verification key {} ",
                         Util.formatKeyId(s.getKeyID()));
                 return;
             }
@@ -561,8 +583,7 @@ public class Decryptor {
             else
                 s.init(getVerifierProvider(), subkey.getPublicKey());
 
-            if (Decryptor.this.log.isInfoEnabled())
-                Decryptor.this.log.info((key == null ? "not " : "") +
+            Decryptor.this.log.info((key == null ? "not " : "") +
                     "using verification key " + subkey);
         }
 
@@ -571,8 +592,7 @@ public class Decryptor {
 
             key = getRing().findById(s.getKeyID());
             if (key == null) {
-                if (Decryptor.this.log.isInfoEnabled())
-                    Decryptor.this.log.info("not found verification key {}",
+                Decryptor.this.log.info("not found verification key {}",
                         Util.formatKeyId(s.getKeyID()));
                 return;
             }
@@ -583,8 +603,7 @@ public class Decryptor {
             else
                 s.init(getVerifierProvider(), subkey.getPublicKey());
 
-            if (Decryptor.this.log.isInfoEnabled())
-                Decryptor.this.log.info((key == null ? "not " : "") +
+            Decryptor.this.log.info((key == null ? "not " : "") +
                     "using verification key " + subkey);
         }
 
