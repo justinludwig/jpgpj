@@ -336,12 +336,10 @@ public class Decryptor {
                             !Util.isEmpty(subkey.passphrase))
                         return decrypt(pke, subkey);
 
-                    else if (log.isInfoEnabled())
-                        log.info("not using decryption key {} ", subkey);
+                    log.info("not using decryption key {} ", subkey);
 
                 } else {
-                    if (log.isInfoEnabled())
-                        log.info("not found decryption key {} ",
+                    log.info("not found decryption key {} ",
                             Util.formatKeyId(pke.getKeyID()));
                 }
 
