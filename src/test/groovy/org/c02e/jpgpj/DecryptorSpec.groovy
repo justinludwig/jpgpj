@@ -1,16 +1,13 @@
 package org.c02e.jpgpj
 
 import java.text.SimpleDateFormat
-import java.util.logging.Level
-import java.util.logging.Logger
 import spock.lang.Specification
 
 class DecryptorSpec extends Specification {
 
     /*
-    static {
-        Logger.getLogger('').handlers*.level = Level.FINEST
-        Logger.getLogger('org.c02e.jpgpj.Decryptor').level = Level.FINEST
+    static{
+        System.setProperty(org.slf4j.impl.SimpleLogger.DEFAULT_LOG_LEVEL_KEY, "TRACE");
     }
     */
 
