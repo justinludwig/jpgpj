@@ -249,6 +249,29 @@ pub v  BC3F6A4B
         meta.verified.keys.signingUid == ['']
     }
 
+    def "decrypt with old style signature verification"() {
+        when:
+        def decryptor = new Decryptor(new Ring(stream('test-ring.asc')))
+        decryptor.ring.keys*.passphrase = 'c02e'
+        def meta = decryptor.decrypt(stream(
+            'test-encrypted-for-key-1-signed-by-key-2-with-pgp2-compatibility.txt.asc'), buf)
+        then:
+        buf.toString() == 'test\n'
+
+        meta.name == 'test.txt'
+        meta.length == 5
+        date(meta.lastModified) == '2018-01-18'
+        meta.format == FileMetadata.Format.BINARY
+
+        meta.verified
+        meta.verified as String == '''
+pub v  880A1469 Test Key 2 <test-key-2@c02e.org>, Test 2 (CODESurvey) <test-key-2@codesurvey.org>
+pub e  AFAFA3C5
+pub v  BC3F6A4B
+        '''.trim()
+        meta.verified.keys.signingUid == ['']
+    }
+
     def "verify signed by 1 of 2 keys"() {
         when:
         def decryptor = new Decryptor(new Ring(stream('test-ring-pub.asc')))

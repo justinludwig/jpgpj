@@ -29,6 +29,7 @@ import org.bouncycastle.openpgp.PGPPrivateKey;
 import org.bouncycastle.openpgp.PGPPublicKeyEncryptedData;
 import org.bouncycastle.openpgp.PGPSignature;
 import org.bouncycastle.openpgp.PGPSignatureList;
+import org.bouncycastle.openpgp.PGPSignatureSubpacketVector;
 import org.bouncycastle.openpgp.PGPUtil;
 import org.bouncycastle.openpgp.bc.BcPGPObjectFactory;
 import org.bouncycastle.openpgp.operator.PBEDataDecryptorFactory;
@@ -615,8 +616,13 @@ public class Decryptor {
         public Key getSignedBy() throws PGPException {
             if (key == null || sig == null) return null;
 
+            // extract optional uid if available
+            String uid = null;
+            PGPSignatureSubpacketVector subpackets = sig.getHashedSubPackets();
+            if (subpackets != null)
+                uid = subpackets.getSignerUserID();
+
             Key by = key.toPublicKey();
-            String uid = sig.getHashedSubPackets().getSignerUserID();
             by.setSigningUid(uid != null ? uid : "");
             return by;
         }
