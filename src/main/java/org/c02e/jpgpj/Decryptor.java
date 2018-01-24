@@ -5,15 +5,13 @@ import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.io.InputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.bouncycastle.bcpg.ArmoredOutputStream;
 import org.bouncycastle.openpgp.PGPCompressedData;
 import org.bouncycastle.openpgp.PGPDataValidationException;
@@ -36,10 +34,12 @@ import org.bouncycastle.openpgp.operator.PBEDataDecryptorFactory;
 import org.bouncycastle.openpgp.operator.PGPContentVerifierBuilderProvider;
 import org.bouncycastle.openpgp.operator.PublicKeyDataDecryptorFactory;
 import org.bouncycastle.openpgp.operator.bc.BcPBEDataDecryptorFactory;
-import org.bouncycastle.openpgp.operator.bc.BcPGPDigestCalculatorProvider;
 import org.bouncycastle.openpgp.operator.bc.BcPGPContentVerifierBuilderProvider;
+import org.bouncycastle.openpgp.operator.bc.BcPGPDigestCalculatorProvider;
 import org.bouncycastle.openpgp.operator.bc.BcPublicKeyDataDecryptorFactory;
 import org.c02e.jpgpj.util.Util;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Decrypts and verifies PGP messages using the decryption and verification
@@ -175,7 +175,8 @@ public class Decryptor {
                     output.close();
                     plaintext.delete();
                 } catch (Exception ee) {
-                    log.error("failed to delete bad output file {}", plaintext, ee);
+                    log.error("failed to delete bad output file {}",
+                        plaintext, ee);
                 }
             throw e;
         } finally {
@@ -230,7 +231,7 @@ public class Decryptor {
         while (packets.hasNext()) {
             Object packet = packets.next();
 
-            log.trace("unpack {} ", packet.getClass());
+            log.trace("unpack {}", packet.getClass());
 
             if (packet instanceof PGPMarker) {
                 // no-op
@@ -337,10 +338,10 @@ public class Decryptor {
                             !Util.isEmpty(subkey.passphrase))
                         return decrypt(pke, subkey);
 
-                    log.info("not using decryption key {} ", subkey);
+                    log.info("not using decryption key {}", subkey);
 
                 } else {
-                    log.info("not found decryption key {} ",
+                    log.info("not found decryption key {}",
                             Util.formatKeyId(pke.getKeyID()));
                 }
 
@@ -362,7 +363,7 @@ public class Decryptor {
         if (data == null || subkey == null)
             throw new DecryptionException("no suitable decryption key found");
 
-        log.info("using decryption key {} ", subkey);
+        log.info("using decryption key {}", subkey);
 
         return data.getDataStream(buildPublicKeyDecryptor(subkey));
     }
@@ -430,7 +431,7 @@ public class Decryptor {
                 throw new VerificationException(
                         "bad signature for key " + verifier.key);
             else
-                log.debug("good signature for key {} ", verifier.key);
+                log.debug("good signature for key {}", verifier.key);
 
             Key key = verifier.getSignedBy();
             for (FileMetadata file : meta)
@@ -547,7 +548,7 @@ public class Decryptor {
 
             key = getRing().findById(s.getKeyID());
             if (key == null) {
-                Decryptor.this.log.info("not found verification key {} ",
+                Decryptor.this.log.info("not found verification key {}",
                         Util.formatKeyId(s.getKeyID()));
                 return;
             }
@@ -558,8 +559,8 @@ public class Decryptor {
             else
                 s.init(getVerifierProvider(), subkey.getPublicKey());
 
-            Decryptor.this.log.info((key == null ? "not " : "") +
-                    "using verification key " + subkey);
+            Decryptor.this.log.info("{}using verification key {}",
+                (key == null ? "not " : ""), subkey);
         }
 
         public void setSig1(PGPOnePassSignature s) throws PGPException {
@@ -578,8 +579,8 @@ public class Decryptor {
             else
                 s.init(getVerifierProvider(), subkey.getPublicKey());
 
-            Decryptor.this.log.info((key == null ? "not " : "") +
-                    "using verification key " + subkey);
+            Decryptor.this.log.info("{}using verification key {}",
+                (key == null ? "not " : ""), subkey);
         }
 
         /**
