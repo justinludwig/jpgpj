@@ -15,9 +15,10 @@ repositories {
 
 dependencies {
     compile 'org.bouncycastle:bcpg-jdk15on:1.59'
-    testCompile 'org.codehaus.groovy:groovy-all:2.4.7'
-    testCompile 'org.spockframework:spock-core:1.0-groovy-2.4'
-    compile group: 'org.slf4j', name: 'slf4j-simple', version: '1.7.6'
+    compile 'org.slf4j:slf4j-api:1.7.25'
+    testCompile 'org.codehaus.groovy:groovy-all:2.4.13'
+    testCompile 'org.slf4j:slf4j-simple:1.7.25'
+    testCompile 'org.spockframework:spock-core:1.1-groovy-2.4'
 
 }
 
