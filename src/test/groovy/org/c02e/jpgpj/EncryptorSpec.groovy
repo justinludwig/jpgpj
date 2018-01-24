@@ -4,13 +4,6 @@ import org.bouncycastle.openpgp.PGPException
 import spock.lang.Specification
 
 class EncryptorSpec extends Specification {
-
-    /*
-    static{
-        System.setProperty(org.slf4j.impl.SimpleLogger.DEFAULT_LOG_LEVEL_KEY, "TRACE");
-    }
-    */
-
     def cipherOut = new ByteArrayOutputStream()
     def plainOut = new ByteArrayOutputStream()
 

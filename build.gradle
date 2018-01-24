@@ -27,6 +27,7 @@ javadoc {
 }
 
 test {
+    //systemProperty 'org.slf4j.simpleLogger.defaultLogLevel', 'TRACE'
     testLogging {
         /*
         exceptionFormat 'full'

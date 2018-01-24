@@ -4,13 +4,6 @@ import java.text.SimpleDateFormat
 import spock.lang.Specification
 
 class DecryptorSpec extends Specification {
-
-    /*
-    static{
-        System.setProperty(org.slf4j.impl.SimpleLogger.DEFAULT_LOG_LEVEL_KEY, "TRACE");
-    }
-    */
-
     def buf = new ByteArrayOutputStream()
 
     def "decrypt without verification"() {
