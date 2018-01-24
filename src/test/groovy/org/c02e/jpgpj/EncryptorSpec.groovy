@@ -1,20 +1,9 @@
 package org.c02e.jpgpj
 
-import java.util.logging.Level
-import java.util.logging.Logger
 import org.bouncycastle.openpgp.PGPException
 import spock.lang.Specification
 
 class EncryptorSpec extends Specification {
-
-    /*
-    static {
-        Logger.getLogger('').handlers*.level = Level.FINEST
-        Logger.getLogger('org.c02e.jpgpj.Decryptor').level = Level.FINEST
-        Logger.getLogger('org.c02e.jpgpj.Encryptor').level = Level.FINEST
-    }
-    */
-
     def cipherOut = new ByteArrayOutputStream()
     def plainOut = new ByteArrayOutputStream()
 

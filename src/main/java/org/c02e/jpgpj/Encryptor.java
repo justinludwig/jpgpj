@@ -2,18 +2,16 @@ package org.c02e.jpgpj;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
-import java.io.FilterOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.io.InputStream;
+import java.io.FilterOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import org.bouncycastle.bcpg.ArmoredOutputStream;
 import org.bouncycastle.bcpg.BCPGOutputStream;
 import org.bouncycastle.openpgp.PGPCompressedDataGenerator;
@@ -23,16 +21,18 @@ import org.bouncycastle.openpgp.PGPLiteralDataGenerator;
 import org.bouncycastle.openpgp.PGPPublicKey;
 import org.bouncycastle.openpgp.PGPSignatureGenerator;
 import org.bouncycastle.openpgp.PGPSignatureSubpacketGenerator;
+import org.bouncycastle.openpgp.operator.PBEKeyEncryptionMethodGenerator;
 import org.bouncycastle.openpgp.operator.PGPContentSignerBuilder;
 import org.bouncycastle.openpgp.operator.PGPDataEncryptorBuilder;
 import org.bouncycastle.openpgp.operator.PublicKeyKeyEncryptionMethodGenerator;
-import org.bouncycastle.openpgp.operator.PBEKeyEncryptionMethodGenerator;
-import org.bouncycastle.openpgp.operator.bc.BcPublicKeyKeyEncryptionMethodGenerator;
+import org.bouncycastle.openpgp.operator.bc.BcPBEKeyEncryptionMethodGenerator;
 import org.bouncycastle.openpgp.operator.bc.BcPGPContentSignerBuilder;
 import org.bouncycastle.openpgp.operator.bc.BcPGPDataEncryptorBuilder;
 import org.bouncycastle.openpgp.operator.bc.BcPGPDigestCalculatorProvider;
-import org.bouncycastle.openpgp.operator.bc.BcPBEKeyEncryptionMethodGenerator;
+import org.bouncycastle.openpgp.operator.bc.BcPublicKeyKeyEncryptionMethodGenerator;
 import org.c02e.jpgpj.util.Util;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Encrypts and signs PGP messages using the encryption and signing
@@ -80,7 +80,7 @@ public class Encryptor {
     protected int keyDerivationWorkFactor;
 
     protected Ring ring;
-    protected Logger log = Logger.getLogger(Encryptor.class.getName());
+    protected Logger log = LoggerFactory.getLogger(Encryptor.class.getName());
 
     /** Constructs an encryptor with an empty key ring. */
     public Encryptor() {
@@ -278,8 +278,8 @@ public class Encryptor {
                     output.close();
                     ciphertext.delete();
                 } catch (Exception ee) {
-                    log.log(Level.SEVERE, "failed to delete bad output file "
-                        + plaintext, ee);
+                    log.error("failed to delete bad output file {}",
+                        plaintext, ee);
                 }
             throw e;
         } finally {
@@ -379,8 +379,7 @@ public class Encryptor {
      */
     protected OutputStream encrypt(OutputStream out, FileMetadata meta)
     throws IOException, PGPException {
-        if (log.isLoggable(Level.FINEST))
-            log.finest("using encryption algorithm " + encryptionAlgorithm);
+        log.trace("using encryption algorithm {}", encryptionAlgorithm);
 
         if (encryptionAlgorithm == EncryptionAlgorithm.Unencrypted)
             return null;
@@ -404,9 +403,8 @@ public class Encryptor {
      */
     protected OutputStream compress(OutputStream out, FileMetadata meta)
     throws IOException, PGPException {
-        if (log.isLoggable(Level.FINEST))
-            log.finest("using compression algorithm " + compressionAlgorithm +
-            " -" + compressionLevel);
+        log.trace("using compression algorithm {} - {}",
+            compressionAlgorithm, compressionLevel);
 
         if (compressionAlgorithm == CompressionAlgorithm.Uncompressed ||
             compressionLevel < 1 || compressionLevel > 9)
@@ -436,8 +434,7 @@ public class Encryptor {
      */
     protected SigningOutputStream sign(OutputStream out, FileMetadata meta)
     throws IOException, PGPException {
-        if (log.isLoggable(Level.FINEST))
-            log.finest("using signing algorithm " + signingAlgorithm);
+        log.trace("using signing algorithm {}", signingAlgorithm);
 
         if (signingAlgorithm == HashingAlgorithm.Unsigned)
             return null;
@@ -447,8 +444,7 @@ public class Encryptor {
         for (int i = signers.size() - 1; i >= 0; i--) {
             Subkey subkey = signers.get(i).getSigning();
             if (subkey == null || Util.isEmpty(subkey.passphrase)) {
-                if (log.isLoggable(Level.INFO))
-                    log.info("not using signing key " + subkey);
+                log.info("not using signing key {}", subkey);
                 signers.remove(i);
             }
         }
@@ -492,8 +488,7 @@ public class Encryptor {
      */
     protected PublicKeyKeyEncryptionMethodGenerator buildPublicKeyEncryptor(
     Key key) {
-        if (log.isLoggable(Level.INFO))
-            log.info("using encryption key " + key.getEncryption());
+        log.info("using encryption key {}", key.getEncryption());
 
         PGPPublicKey publicKey = key.getEncryption().getPublicKey();
         return new BcPublicKeyKeyEncryptionMethodGenerator(publicKey);
@@ -505,10 +500,8 @@ public class Encryptor {
      */
     protected PBEKeyEncryptionMethodGenerator buildSymmetricKeyEncryptor()
     throws PGPException {
-        if (log.isLoggable(Level.INFO))
-            log.info("using symmetric encryption with " +
-                keyDerivationAlgorithm + " hash, work factor " +
-                keyDerivationWorkFactor);
+        log.info("using symmetric encryption with {} hash, work factor {}",
+                keyDerivationAlgorithm, keyDerivationWorkFactor);
 
         int algo = keyDerivationAlgorithm.ordinal();
         return new BcPBEKeyEncryptionMethodGenerator(
@@ -524,8 +517,7 @@ public class Encryptor {
     throws PGPException {
         Subkey subkey = key.getSigning();
 
-        if (log.isLoggable(Level.INFO))
-            log.info("using signing key " + subkey);
+        log.info("using signing key {}", subkey);
 
         PGPContentSignerBuilder builder = buildSignerBuilder(
             subkey.getPublicKey().getAlgorithm(),
@@ -537,8 +529,7 @@ public class Encryptor {
 
         String uid = key.getSigningUid();
         if (!Util.isEmpty(uid)) {
-            if (log.isLoggable(Level.FINE))
-                log.fine("using signing uid " + uid);
+            log.debug("using signing uid {}", uid);
 
             PGPSignatureSubpacketGenerator signer =
                 new PGPSignatureSubpacketGenerator();

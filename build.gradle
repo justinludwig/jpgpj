@@ -17,6 +17,8 @@ dependencies {
     compile 'org.bouncycastle:bcpg-jdk15on:1.58'
     testCompile 'org.codehaus.groovy:groovy-all:2.4.7'
     testCompile 'org.spockframework:spock-core:1.0-groovy-2.4'
+    compile group: 'org.slf4j', name: 'slf4j-simple', version: '1.7.6'
+
 }
 
 javadoc {
@@ -25,6 +27,7 @@ javadoc {
 }
 
 test {
+    //systemProperty 'org.slf4j.simpleLogger.defaultLogLevel', 'TRACE'
     testLogging {
         /*
         exceptionFormat 'full'
