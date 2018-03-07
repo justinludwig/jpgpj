@@ -52,4 +52,16 @@ public class Util {
         }
         return new String(chars);
     }
+
+  /**
+   * Returns the fileSize rounded up to exact power of 2 with a maximum
+   * of maxBufferSize (which should be power of 2).
+   */
+    public static int bestBufferSize(long fileSize, int maxBufferSize) {
+        if (fileSize>=maxBufferSize) return maxBufferSize;
+        else {
+            return 1 << (32 - Long.numberOfLeadingZeros(fileSize));
+        }
+    }
+
 }

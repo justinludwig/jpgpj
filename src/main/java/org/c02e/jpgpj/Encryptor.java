@@ -79,6 +79,8 @@ public class Encryptor {
     protected HashingAlgorithm keyDerivationAlgorithm;
     protected int keyDerivationWorkFactor;
 
+    protected int maxBufferSize = 0x100000; //1MB
+
     protected Ring ring;
     protected Logger log = LoggerFactory.getLogger(Encryptor.class.getName());
 
@@ -225,7 +227,20 @@ public class Encryptor {
         keyDerivationWorkFactor = x;
     }
 
-    /** Keys to use for encryption and signing. */
+    public int getMaxBufferSize() {
+        return maxBufferSize;
+    }
+
+    /**
+     * Encryptor will choose the most appropriate read/write buffer size
+     * for each file. You can set the maximum value here and it must be
+     * power of 2. Defaults to 1MB.
+     */
+    public void setMaxBufferSize(int maxBufferSize) {
+        this.maxBufferSize = maxBufferSize;
+    }
+
+  /** Keys to use for encryption and signing. */
     public Ring getRing() {
         return ring;
     }
@@ -266,10 +281,12 @@ public class Encryptor {
         InputStream input = null;
         OutputStream output = null;
         try {
+            int bestBufferSize =
+                Util.bestBufferSize(plaintext.length(), maxBufferSize);
             input = new BufferedInputStream(
-                new FileInputStream(plaintext), 0x1000);
+                new FileInputStream(plaintext), bestBufferSize);
             output = new BufferedOutputStream(
-                new FileOutputStream(ciphertext), 0x1000);
+                new FileOutputStream(ciphertext), bestBufferSize);
             encrypt(input, output, new FileMetadata(plaintext));
         } catch (Exception e) {
             // delete output file if anything went wrong

@@ -71,6 +71,7 @@ import org.slf4j.LoggerFactory;
 public class Decryptor {
     protected boolean verificationRequired;
     protected String symmetricPassphrase;
+    protected int maxBufferSize = 0x100000; //1MB
     protected Ring ring;
     protected Logger log = LoggerFactory.getLogger(Decryptor.class.getName());
 
@@ -118,7 +119,20 @@ public class Decryptor {
         symmetricPassphrase = x != null ? x : "";
     }
 
-    /** Keys to use for decryption and verification. */
+    public int getMaxBufferSize() {
+        return maxBufferSize;
+    }
+
+    /**
+     * Decryptor will choose the most appropriate read/write buffer size
+     * for each file. You can set the maximum value here and it must be
+     * power of 2. Defaults to 1MB.
+     */
+    public void setMaxBufferSize(int maxBufferSize) {
+        this.maxBufferSize = maxBufferSize;
+    }
+
+  /** Keys to use for decryption and verification. */
     public Ring getRing() {
         return ring;
     }
@@ -163,10 +177,12 @@ public class Decryptor {
         InputStream input = null;
         OutputStream output = null;
         try {
+            int bestBufferSize =
+                Util.bestBufferSize(plaintext.length(), maxBufferSize);
             input = new BufferedInputStream(
-                new FileInputStream(ciphertext), 0x1000);
+                new FileInputStream(ciphertext), bestBufferSize);
             output = new BufferedOutputStream(
-                new FileOutputStream(plaintext), 0x1000);
+                new FileOutputStream(plaintext), bestBufferSize);
             return decrypt(input, output);
         } catch (Exception e) {
             // delete output file if anything went wrong
