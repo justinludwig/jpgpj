@@ -12,10 +12,9 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
-import org.bouncycastle.bcpg.ArmoredOutputStream;
+
 import org.bouncycastle.openpgp.PGPCompressedData;
 import org.bouncycastle.openpgp.PGPDataValidationException;
-import org.bouncycastle.openpgp.PGPEncryptedData;
 import org.bouncycastle.openpgp.PGPEncryptedDataList;
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPLiteralData;
@@ -71,7 +70,7 @@ import org.slf4j.LoggerFactory;
 public class Decryptor {
     protected boolean verificationRequired;
     protected String symmetricPassphrase;
-    protected int maxBufferSize = 0x100000; //1MB
+    protected int maxFileBufferSize = 0x100000; //1MB
     protected Ring ring;
     protected Logger log = LoggerFactory.getLogger(Decryptor.class.getName());
 
@@ -119,17 +118,16 @@ public class Decryptor {
         symmetricPassphrase = x != null ? x : "";
     }
 
-    public int getMaxBufferSize() {
-        return maxBufferSize;
+    public int getMaxFileBufferSize() {
+        return maxFileBufferSize;
     }
 
     /**
      * Decryptor will choose the most appropriate read/write buffer size
-     * for each file. You can set the maximum value here and it must be
-     * power of 2. Defaults to 1MB.
+     * for each file. You can set the maximum value here. Defaults to 1MB.
      */
-    public void setMaxBufferSize(int maxBufferSize) {
-        this.maxBufferSize = maxBufferSize;
+    public void setMaxFileBufferSize(int maxFileBufferSize) {
+        this.maxFileBufferSize = maxFileBufferSize;
     }
 
   /** Keys to use for decryption and verification. */
@@ -178,7 +176,7 @@ public class Decryptor {
         OutputStream output = null;
         try {
             int bestBufferSize =
-                Util.bestBufferSize(plaintext.length(), maxBufferSize);
+                Util.bestFileBufferSize(ciphertext.length(), maxFileBufferSize);
             input = new BufferedInputStream(
                 new FileInputStream(ciphertext), bestBufferSize);
             output = new BufferedOutputStream(

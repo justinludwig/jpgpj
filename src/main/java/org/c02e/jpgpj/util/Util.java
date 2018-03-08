@@ -54,14 +54,12 @@ public class Util {
     }
 
   /**
-   * Returns the fileSize rounded up to exact power of 2 with a maximum
-   * of maxBufferSize (which should be power of 2).
+   * Returns the exact fileSize with a maximum of maxFileBufferSize.
    */
-    public static int bestBufferSize(long fileSize, int maxBufferSize) {
-        if (fileSize>=maxBufferSize) return maxBufferSize;
-        else {
-            return 1 << (32 - Long.numberOfLeadingZeros(fileSize));
-        }
+    public static int bestFileBufferSize(long fileSize, int maxFileBufferSize) {
+        return (fileSize>=maxFileBufferSize) ?
+            maxFileBufferSize :
+            Math.toIntExact(fileSize);
     }
 
 }
