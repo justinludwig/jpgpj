@@ -28,6 +28,8 @@ javadoc {
 }
 
 test {
+    // output armor with \n instead of \r\n on Windows
+    systemProperty 'line.separator', '\n'
     //systemProperty 'org.slf4j.simpleLogger.defaultLogLevel', 'TRACE'
     testLogging {
         /*

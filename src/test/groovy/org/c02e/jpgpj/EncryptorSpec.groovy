@@ -533,6 +533,110 @@ hQEMAyne546XDHBhAQ...
         ]
     }
 
+    def "estimate unarmored output file size with no keys"() {
+        setup:
+        def encryptor = new Encryptor();
+        expect:
+        encryptor.estimateOutFileSize(inputSize) == outputSize
+        where:
+        inputSize << [
+            -1, 0, 1,
+            0x1000, 0xffff, 0x10000,
+            0xfffff, 0x100000, 0x100001,
+            0x10000000, 0xffffffffL, 0x100000000000L,
+        ]
+        outputSize << [
+            0x1ff, 0x200, 0x201,
+            0x1200, 0x101ff, 0x10200,
+            0x100000, 0x100000, 0x100000,
+            0x100000, 0x100000, 0x100000,
+        ]
+    }
+
+    def "estimate armored output file size with no keys"() {
+        setup:
+        def encryptor = new Encryptor();
+        encryptor.asciiArmored = true
+        expect:
+        encryptor.estimateOutFileSize(inputSize) == outputSize
+        where:
+        inputSize << [
+            -1, 0, 1,
+            0x1000, 0xffff, 0x10000,
+            0xfffff, 0x100000, 0x100001,
+            0x10000000, 0xffffffffL, 0x100000000000L,
+        ]
+        outputSize << [
+            771, 773, 774,
+            6320, 89518, 89520,
+            0x100000, 0x100000, 0x100000,
+            0x100000, 0x100000, 0x100000,
+        ]
+    }
+
+    def "estimate unarmored output file size with multiple keys"() {
+        setup:
+        // set up 2 encryption keys and 1 signing key
+        def encryptor = new Encryptor(new Ring(stream('test-ring.asc')))
+        encryptor.ring.findAll('key-1')*.signing*.forSigning = false
+        expect:
+        encryptor.estimateOutFileSize(inputSize) == outputSize
+        where:
+        inputSize << [
+            -1, 0, 1,
+            0x1000, 0xffff, 0x10000,
+            0xfffff, 0x100000, 0x100001,
+            0x10000000, 0xffffffffL, 0x100000000000L,
+        ]
+        outputSize << [
+            0x7ff, 0x800, 0x801,
+            0x1800, 0x107ff, 0x10800,
+            0x100000, 0x100000, 0x100000,
+            0x100000, 0x100000, 0x100000,
+        ]
+    }
+
+    def "check estimate against actual for unarmored output file size"() {
+        setup:
+        // set up 2 encryption keys and 1 signing key
+        def encryptor = new Encryptor(new Ring(stream('test-ring.asc')))
+        encryptor.ring.findAll('key-1')*.signing*.forSigning = false
+        encryptor.ring.keys*.passphrase = 'c02e'
+        // assume input already well compressed
+        encryptor.compressionAlgorithm = CompressionAlgorithm.Uncompressed
+        when:
+        def plainIn = new ByteArrayInputStream(new byte[inputSize])
+        encryptor.encrypt plainIn, cipherOut
+        def estimate = encryptor.estimateOutFileSize(inputSize)
+        def actual = cipherOut.size()
+        then:
+        estimate > actual
+        estimate - actual < 0x800
+        where:
+        inputSize << [0, 1, 0x1000, 0xabcd, 0x10000]
+    }
+
+    def "check estimate against actual for armored output file size"() {
+        setup:
+        // set up 2 encryption keys and 1 signing key
+        def encryptor = new Encryptor(new Ring(stream('test-ring.asc')))
+        encryptor.asciiArmored = true
+        encryptor.ring.findAll('key-1')*.signing*.forSigning = false
+        encryptor.ring.keys*.passphrase = 'c02e'
+        // assume input already well compressed
+        encryptor.compressionAlgorithm = CompressionAlgorithm.Uncompressed
+        when:
+        def plainIn = new ByteArrayInputStream(new byte[inputSize])
+        encryptor.encrypt plainIn, cipherOut
+        def estimate = encryptor.estimateOutFileSize(inputSize)
+        def actual = cipherOut.size()
+        then:
+        estimate > actual
+        estimate - actual < 0x800
+        where:
+        inputSize << [0, 1, 0x1000, 0xabcd, 0x10000]
+    }
+
     def "encrypt and sign a big file"() {
         setup:
         // 1MB of zeros
