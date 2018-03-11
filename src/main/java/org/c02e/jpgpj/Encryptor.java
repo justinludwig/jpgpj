@@ -232,14 +232,13 @@ public class Encryptor {
 
     /**
      * Encryptor will choose the most appropriate read/write buffer size
-     * for each file. You can set the maximum value here and it must be
-     * power of 2. Defaults to 1MB.
+     * for each file. Defaults to 1MB.
      */
     public void setMaxFileBufferSize(int maxFileBufferSize) {
         this.maxFileBufferSize = maxFileBufferSize;
     }
 
-  /** Keys to use for encryption and signing. */
+    /** Keys to use for encryption and signing. */
     public Ring getRing() {
         return ring;
     }
@@ -602,18 +601,18 @@ public class Encryptor {
     }
 
     private int estimateOutFileSize(long inFileSize) {
-        if (inFileSize > Integer.MAX_VALUE) return maxFileBufferSize;
+        if (inFileSize > maxFileBufferSize) return maxFileBufferSize;
         else {
             long outFileSize = inFileSize;
             outFileSize += (1 + getRing().getEncryptionKeys().size() +
                 getRing().getSigningKeys().size()) * 512;
             if (isAsciiArmored()) {
-                outFileSize *= (4 / 3) *
-                    ((64 + Strings.lineSeparator().length()) / 64);
+                outFileSize *= (4f / 3) *
+                    ((64f + Strings.lineSeparator().length()) / 64);
                 outFileSize += 80;
             }
             return (outFileSize >= maxFileBufferSize) ?
-                maxFileBufferSize : Math.toIntExact(outFileSize);
+                maxFileBufferSize : (int) outFileSize;
         }
     }
 

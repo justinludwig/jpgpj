@@ -58,8 +58,7 @@ public class Util {
    */
     public static int bestFileBufferSize(long fileSize, int maxFileBufferSize) {
         return (fileSize>=maxFileBufferSize) ?
-            maxFileBufferSize :
-            Math.toIntExact(fileSize);
+            maxFileBufferSize : (int) fileSize;
     }
 
 }

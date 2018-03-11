@@ -130,7 +130,7 @@ public class Decryptor {
         this.maxFileBufferSize = maxFileBufferSize;
     }
 
-  /** Keys to use for decryption and verification. */
+    /** Keys to use for decryption and verification. */
     public Ring getRing() {
         return ring;
     }
