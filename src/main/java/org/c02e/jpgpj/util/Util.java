@@ -52,4 +52,13 @@ public class Util {
         }
         return new String(chars);
     }
+
+  /**
+   * Returns the exact fileSize with a maximum of maxFileBufferSize.
+   */
+    public static int bestFileBufferSize(long fileSize, int maxFileBufferSize) {
+        return (fileSize>=maxFileBufferSize) ?
+            maxFileBufferSize : (int) fileSize;
+    }
+
 }

@@ -13,7 +13,6 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import org.bouncycastle.bcpg.ArmoredOutputStream;
-import org.bouncycastle.bcpg.BCPGOutputStream;
 import org.bouncycastle.openpgp.PGPCompressedDataGenerator;
 import org.bouncycastle.openpgp.PGPEncryptedDataGenerator;
 import org.bouncycastle.openpgp.PGPException;
@@ -23,13 +22,13 @@ import org.bouncycastle.openpgp.PGPSignatureGenerator;
 import org.bouncycastle.openpgp.PGPSignatureSubpacketGenerator;
 import org.bouncycastle.openpgp.operator.PBEKeyEncryptionMethodGenerator;
 import org.bouncycastle.openpgp.operator.PGPContentSignerBuilder;
-import org.bouncycastle.openpgp.operator.PGPDataEncryptorBuilder;
 import org.bouncycastle.openpgp.operator.PublicKeyKeyEncryptionMethodGenerator;
 import org.bouncycastle.openpgp.operator.bc.BcPBEKeyEncryptionMethodGenerator;
 import org.bouncycastle.openpgp.operator.bc.BcPGPContentSignerBuilder;
 import org.bouncycastle.openpgp.operator.bc.BcPGPDataEncryptorBuilder;
 import org.bouncycastle.openpgp.operator.bc.BcPGPDigestCalculatorProvider;
 import org.bouncycastle.openpgp.operator.bc.BcPublicKeyKeyEncryptionMethodGenerator;
+import org.bouncycastle.util.Strings;
 import org.c02e.jpgpj.util.Util;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -78,6 +77,8 @@ public class Encryptor {
     protected String symmetricPassphrase;
     protected HashingAlgorithm keyDerivationAlgorithm;
     protected int keyDerivationWorkFactor;
+
+    protected int maxFileBufferSize = 0x100000; //1MB
 
     protected Ring ring;
     protected Logger log = LoggerFactory.getLogger(Encryptor.class.getName());
@@ -225,6 +226,18 @@ public class Encryptor {
         keyDerivationWorkFactor = x;
     }
 
+    public int getMaxFileBufferSize() {
+        return maxFileBufferSize;
+    }
+
+    /**
+     * Encryptor will choose the most appropriate read/write buffer size
+     * for each file. Defaults to 1MB.
+     */
+    public void setMaxFileBufferSize(int maxFileBufferSize) {
+        this.maxFileBufferSize = maxFileBufferSize;
+    }
+
     /** Keys to use for encryption and signing. */
     public Ring getRing() {
         return ring;
@@ -266,10 +279,13 @@ public class Encryptor {
         InputStream input = null;
         OutputStream output = null;
         try {
+            int bestFileBufferSize =
+                Util.bestFileBufferSize(plaintext.length(), maxFileBufferSize);
             input = new BufferedInputStream(
-                new FileInputStream(plaintext), 0x1000);
+                new FileInputStream(plaintext), bestFileBufferSize);
             output = new BufferedOutputStream(
-                new FileOutputStream(ciphertext), 0x1000);
+                new FileOutputStream(ciphertext),
+                estimateOutFileSize(plaintext.length()));
             encrypt(input, output, new FileMetadata(plaintext));
         } catch (Exception e) {
             // delete output file if anything went wrong
@@ -582,6 +598,22 @@ public class Encryptor {
             len = 0x10000;
 
         return len;
+    }
+
+    private int estimateOutFileSize(long inFileSize) {
+        if (inFileSize > maxFileBufferSize) return maxFileBufferSize;
+        else {
+            long outFileSize = inFileSize;
+            outFileSize += (1 + getRing().getEncryptionKeys().size() +
+                getRing().getSigningKeys().size()) * 512;
+            if (isAsciiArmored()) {
+                outFileSize *= (4f / 3) *
+                    ((64f + Strings.lineSeparator().length()) / 64);
+                outFileSize += 80;
+            }
+            return (outFileSize >= maxFileBufferSize) ?
+                maxFileBufferSize : (int) outFileSize;
+        }
     }
 
     protected class SigningOutputStream extends FilterOutputStream {
