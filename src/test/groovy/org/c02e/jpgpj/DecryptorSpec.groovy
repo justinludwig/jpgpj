@@ -174,6 +174,20 @@ pub v  BC3F6A4B
         e.message == 'content not signed with a required key'
     }
 
+    def "decrypt with public and private versions of same key"() {
+        when:
+        def decryptor = new Decryptor(
+            new Key(file('test-key-1-pub.asc')),
+            new Key(file('test-key-1.asc'), 'c02e'),
+            new Key(file('test-key-2-pub.asc')),
+        )
+        def meta = decryptor.decrypt(stream(
+            'test-encrypted-for-key-1-signed-by-key-2.txt.asc'), buf)
+        then:
+        buf.toString() == 'test\n'
+        meta.verified
+    }
+
     def "decrypt symmetric without verification"() {
         when:
         def decryptor = new Decryptor()

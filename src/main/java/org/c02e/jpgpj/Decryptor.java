@@ -344,20 +344,21 @@ public class Decryptor {
                 PGPPublicKeyEncryptedData pke = (PGPPublicKeyEncryptedData) o;
 
                 // try to find decryption key for pk-encrypted data
-                Key key = ring.findById(pke.getKeyID());
-                if (key != null) {
-                    Subkey subkey = key.findById(pke.getKeyID());
+                Long id = pke.getKeyID();
+                List<Key> keys = ring.findAll(id);
 
+                for (Key key: keys) {
+                    Subkey subkey = key.findById(id);
                     if (subkey != null && subkey.isForDecryption() &&
                             !Util.isEmpty(subkey.passphrase))
                         return decrypt(pke, subkey);
 
                     log.info("not using decryption key {}", subkey);
-
-                } else {
-                    log.info("not found decryption key {}",
-                            Util.formatKeyId(pke.getKeyID()));
                 }
+
+                if (Util.isEmpty(keys))
+                    log.info("not found decryption key {}",
+                            Util.formatKeyId(id));
 
             } else if (o instanceof PGPPBEEncryptedData) {
                 // try first symmetric-key option at the end
@@ -534,6 +535,9 @@ public class Decryptor {
         return new byte[0x4000];
     }
 
+    /**
+     * Helper for verifying a given message signature.
+     */
     protected class Verifier {
         public Key key;
         public PGPSignature sig;
@@ -560,41 +564,17 @@ public class Decryptor {
             sig = s;
             if (sig1 != null) return;
 
-            key = getRing().findById(s.getKeyID());
-            if (key == null) {
-                Decryptor.this.log.info("not found verification key {}",
-                        Util.formatKeyId(s.getKeyID()));
-                return;
-            }
-
-            Subkey subkey = key.findById(s.getKeyID());
-            if (subkey == null || !subkey.isForVerification())
-                key = null;
-            else
+            Subkey subkey = findVerificationSubkey(s.getKeyID());
+            if (subkey != null)
                 s.init(getVerifierProvider(), subkey.getPublicKey());
-
-            Decryptor.this.log.info("{}using verification key {}",
-                (key == null ? "not " : ""), subkey);
         }
 
         public void setSig1(PGPOnePassSignature s) throws PGPException {
             sig1 = s;
 
-            key = getRing().findById(s.getKeyID());
-            if (key == null) {
-                Decryptor.this.log.info("not found verification key {}",
-                        Util.formatKeyId(s.getKeyID()));
-                return;
-            }
-
-            Subkey subkey = key.findById(s.getKeyID());
-            if (subkey == null || !subkey.isForVerification())
-                key = null;
-            else
+            Subkey subkey = findVerificationSubkey(s.getKeyID());
+            if (subkey != null)
                 s.init(getVerifierProvider(), subkey.getPublicKey());
-
-            Decryptor.this.log.info("{}using verification key {}",
-                (key == null ? "not " : ""), subkey);
         }
 
         /**
@@ -633,6 +613,31 @@ public class Decryptor {
             Key by = key.toPublicKey();
             by.setSigningUid(uid != null ? uid : "");
             return by;
+        }
+
+        /**
+         * Finds verification subkey by ID in this Decryptor's ring, or null.
+         * If found, also sets "key" field to subkey's key.
+         */
+        private Subkey findVerificationSubkey(Long id) {
+            List<Key> keys = ring.findAll(id);
+
+            for (Key key: keys) {
+                Subkey subkey = key.findById(id);
+
+                if (subkey != null && subkey.isForVerification()) {
+                    log.info("using verification key {}", subkey);
+                    this.key = key;
+                    return subkey;
+                }
+
+                log.info("not using verification key {}", subkey);
+            }
+
+            if (Util.isEmpty(keys))
+                log.info("not found verification key {}", Util.formatKeyId(id));
+
+            return null;
         }
     }
 }

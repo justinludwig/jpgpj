@@ -70,7 +70,7 @@ class RingSpec extends Specification {
         !ring.decryptionKeys
     }
 
-    def "find key by id number"() {
+    def "find one key by id number"() {
         when:
         def ring = new Ring(file('test-ring-pub.asc'))
         then:
@@ -82,6 +82,49 @@ class RingSpec extends Specification {
         ring.findById(0x2B04481E880A1469L).master.shortId == '880A1469'
         ring.findById(0x6727B00AAFAFA3C5L).master.shortId == '880A1469'
         !ring.findById(0xAFDB7B47L)
+    }
+
+    def "find key by id number"() {
+        when:
+        def ring = new Ring(file('test-ring-pub.asc'))
+        // add second copy of key 1, including both public and private parts
+        ring.load(file('test-key-1.asc'))
+        then:
+        !ring.findAll(0)
+        !ring.findAll(123)
+        !ring.findAll(0xAFDB7B47L)
+
+        when:
+        def key1s = ring.findAll(0x72A423A0013826C3L)
+        def subkey1s = key1s*.findById(0x72A423A0013826C3L)
+        then:
+        subkey1s.shortId == ['013826C3', '013826C3']
+        subkey1s.forSigning == [false, true]
+        subkey1s.forVerification == [true, true]
+
+        when:
+        def key1e = ring.findAll(0x29DEE78E970C7061L)
+        def subkey1e = key1e*.findById(0x29DEE78E970C7061L)
+        then:
+        subkey1e.shortId == ['970C7061', '970C7061']
+        subkey1e.forEncryption == [true, true]
+        subkey1e.forDecryption == [false, true]
+
+        when:
+        def key2s = ring.findAll(0x2B04481E880A1469L)
+        def subkey2s = key2s*.findById(0x2B04481E880A1469L)
+        then:
+        subkey2s.shortId == ['880A1469']
+        subkey2s.forSigning == [false]
+        subkey2s.forVerification == [true]
+
+        when:
+        def key2e = ring.findAll(0x6727B00AAFAFA3C5L)
+        def subkey2e = key2e*.findById(0x6727B00AAFAFA3C5L)
+        then:
+        subkey2e.shortId == ['AFAFA3C5']
+        subkey2e.forEncryption == [true]
+        subkey2e.forDecryption == [false]
     }
 
     def "find key by uid"() {

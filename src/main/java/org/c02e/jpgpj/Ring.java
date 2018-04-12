@@ -152,12 +152,34 @@ public class Ring {
         keys = x != null ? x : new ArrayList<Key>();
     }
 
-    /** Key containing the subkey with the specified full ID, or null. */
+    /**
+     * First key containing the subkey with the specified full ID, or null.
+     * @deprecated Use {@link #findAll} (to find all subkeys on a ring,
+     * in case the same key had been included multiple times
+     * with different settings on the same ring).
+     */
     public Key findById(Long id) {
         for (Key key : keys)
             if (key.findById(id) != null)
                 return key;
         return null;
+    }
+
+    /**
+     * All keys for which the specified ID is any subkey's full ID.
+     * Normally this will return 0 or 1 keys, but if a key has been added
+     * to a ring multiple times (with different settings, such as one time
+     * as a public key and one time as a private key), this method may return
+     * more than one key instance.
+     */
+    public List<Key> findAll(Long id) {
+        if (id == null) return Collections.emptyList();
+
+        ArrayList<Key> result = new ArrayList<Key>();
+        for (Key key : keys)
+            if (key.findById(id) != null)
+                result.add(key);
+        return result;
     }
 
     /**
