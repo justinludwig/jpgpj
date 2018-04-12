@@ -9,10 +9,13 @@ public enum EncryptionAlgorithm {
     TripleDES,
     CAST5,
     Blowfish,
-    Reserved5,
-    Reserved6,
+    Reserved5, // SAFER-SK128
+    Reserved6, // DES
     AES128,
     AES192,
     AES256,
-    Twofish;
+    Twofish,
+    Camellia128,
+    Camellia192,
+    Camellia256;
 }

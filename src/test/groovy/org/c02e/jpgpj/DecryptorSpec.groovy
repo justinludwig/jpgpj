@@ -112,6 +112,17 @@ pub v  BC3F6A4B
         !meta.verified
     }
 
+    def "decrypt camellia"() {
+        when:
+        def decryptor = new Decryptor(new Ring(stream('test-ring.asc')))
+        decryptor.ring.keys*.passphrase = 'c02e'
+        decryptor.verificationRequired = false
+        def meta = decryptor.decrypt(stream(
+            'test-encrypted-for-key-1-with-camellia.txt.asc'), buf)
+        then:
+        buf.toString() == 'test\n'
+    }
+
     def "decrypt without passphrase"() {
         when:
         def decryptor = new Decryptor(new Ring(stream('test-ring.asc')))
