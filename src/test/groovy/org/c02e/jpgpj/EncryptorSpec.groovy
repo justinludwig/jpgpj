@@ -514,6 +514,21 @@ hQEMAyne546XDHBhAQ...
         meta.verified.keys.signingUid == ['Test Key 2 <test-key-2@c02e.org>']
     }
 
+    def "encrypt and sign with passphrase-less key"() {
+        when:
+        def encryptor = new Encryptor(new Ring(stream('test-key-no-passphrase.asc')))
+        encryptor.ring.keys*.noPassphrase = true
+        encryptor.encrypt plainIn, cipherOut
+
+        def decryptor = new Decryptor(new Ring(stream('test-key-no-passphrase.asc')))
+        decryptor.ring.keys*.noPassphrase = true
+        def meta = decryptor.decrypt(cipherIn, plainOut)
+
+        then:
+        plainOut.toString() == plainText
+        meta.verified
+    }
+
     def "best packet size"() {
         when:
         def encryptor = new Encryptor();

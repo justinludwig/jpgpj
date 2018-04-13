@@ -510,7 +510,7 @@ public class Decryptor {
     }
 
     /**
-     * Builds a symmetric-encryption decryptor for the specified passphrase.
+     * Builds a symmetric-encryption decryptor for the specified subkey.
      */
     protected PublicKeyDataDecryptorFactory buildPublicKeyDecryptor(
     Subkey subkey) throws PGPException {

@@ -54,6 +54,9 @@ import org.c02e.jpgpj.util.Util;
  * or all user IDs, as the message signer).
  */
 public class Key {
+    /** Use this value to set the passphrase of a passphrase-less key. */
+    public static String NO_PASSPHRASE = "JPGPJ_NO_PASSPHRASE";
+
     protected String signingUid;
     protected List<Subkey> subkeys;
 
@@ -162,6 +165,15 @@ public class Key {
     public void setPassphrase(String x) {
         for (Subkey subkey : subkeys)
             subkey.setPassphrase(x);
+    }
+
+    /**
+     * True to flag all subkeys as needing no passphrase to unlock;
+     * false to require a passphrase to be (re-)set on all subkeys.
+     */
+    public void setNoPassphrase(boolean x) {
+        for (Subkey subkey : subkeys)
+            subkey.setNoPassphrase(x);
     }
 
     /**

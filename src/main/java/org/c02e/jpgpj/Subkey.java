@@ -47,6 +47,8 @@ import org.c02e.jpgpj.util.Util;
  * you must also set the subkey's passphrase, either via the
  * {@link #setPassphrase} method on the subkey, or the
  * {@link Key#setPassphrase} on its containing {@link Key}.
+ * If the subkey does not have a passphrase, set the passphrase to the
+ * {@link Key#NO_PASSPHRASE} constant.
  */
 public class Subkey {
     protected boolean forSigning;
@@ -139,6 +141,8 @@ public class Subkey {
     /**
      * Passphrase needed to unlock the private part
      * of the subkey's public key-pair; or empty string.
+     * Use {@link Key#NO_PASSPHRASE} to signal the private part of the subkey
+     * is not protected by a passphrase.
      */
     public String getPassphrase() {
         return passphrase;
@@ -147,9 +151,27 @@ public class Subkey {
     /**
      * Passphrase needed to unlock the private part
      * of the subkey's public key-pair; or empty string.
+     * Use {@link Key#NO_PASSPHRASE} to signal the private part of the subkey
+     * is not protected by a passphrase.
      */
     public void setPassphrase(String x) {
         passphrase = x != null ? x : "";
+    }
+
+    /**
+     * True if no passphrase is needed to unlock the private part
+     * of the subkey's public key-pair.
+     */
+    public boolean isNoPassphrase() {
+        return Key.NO_PASSPHRASE.equals(passphrase);
+    }
+
+    /**
+     * True if no passphrase is needed to unlock the private part
+     * of the subkey's public key-pair.
+     */
+    public void setNoPassphrase(boolean x) {
+        passphrase = x ? Key.NO_PASSPHRASE : "";
     }
 
     /**
@@ -323,7 +345,7 @@ public class Subkey {
      * Builds a secret key decryptor for the specified passphrase.
      */
     protected PBESecretKeyDecryptor buildDecryptor(String passphrase) {
-        char[] chars = !Util.isEmpty(passphrase) ?
+        char[] chars = !Util.isEmpty(passphrase) && !isNoPassphrase() ?
             passphrase.toCharArray() : new char[0];
         return new BcPBESecretKeyDecryptorBuilder(
             new BcPGPDigestCalculatorProvider()).build(chars);
