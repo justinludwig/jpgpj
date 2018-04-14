@@ -197,7 +197,7 @@ Add the following dependency to your `pom.xml` file:
 <dependency>
     <groupId>org.c02e.jpgpj</groupId>
     <artifactId>jpgpj</artifactId>
-    <version>0.3.0</version>
+    <version>0.4</version>
 </dependency>
 ```
 
@@ -208,7 +208,7 @@ Add the following dependency to your `build.gradle` file:
 ```gradle
 dependencies {
     ...
-    compile 'org.c02e.jpgpj:jpgpj:0.3.0'
+    compile 'org.c02e.jpgpj:jpgpj:0.4'
     ...
 }
 ```
