@@ -278,6 +278,12 @@ public class Subkey {
             if (hashedSubPackets != null)
                 flags |= hashedSubPackets.getKeyFlags();
         }
+
+        // Handle case where master key is flagged for encryption to match gpg implementation
+        if ( publicKey.isEncryptionKey() ) {
+            flags |= PGPKeyFlags.CAN_ENCRYPT_COMMS;
+        }
+
         return flags;
     }
 
