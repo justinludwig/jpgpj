@@ -84,6 +84,19 @@ public class Key {
      * and sets the passphrase of all subkeys to the specified passphrase.
      * @throws PGPException if the text contains no keys.
      */
+    public Key(String armor, char[] passphraseChars)
+    throws IOException, PGPException {
+        this(armor);
+        setPassphraseChars(passphraseChars);
+    }
+
+    /**
+     * Loads first key from the specified armored text,
+     * and sets the passphrase of all subkeys to the specified passphrase.
+     * Prefer {@link #Key(String, char[])} to avoid creating
+     * extra copies of the passphrase in memory that cannot be cleaned up.
+     * @throws PGPException if the text contains no keys.
+     */
     public Key(String armor, String passphrase)
     throws IOException, PGPException {
         this(armor);
@@ -104,6 +117,18 @@ public class Key {
      * and sets the passphrase of all subkeys to the specified passphrase.
      * @throws PGPException if the file contains no keys.
      */
+    public Key(File file, char[] passphraseChars) throws IOException, PGPException {
+        this(file);
+        setPassphraseChars(passphraseChars);
+    }
+
+    /**
+     * Loads first key from the specified file,
+     * and sets the passphrase of all subkeys to the specified passphrase.
+     * Prefer {@link #Key(File, char[])} to avoid creating
+     * extra copies of the passphrase in memory that cannot be cleaned up.
+     * @throws PGPException if the file contains no keys.
+     */
     public Key(File file, String passphrase) throws IOException, PGPException {
         this(file);
         setPassphrase(passphrase);
@@ -121,6 +146,19 @@ public class Key {
     /**
      * Loads first key from the specified input stream,
      * and sets the passphrase of all subkeys to the specified passphrase.
+     * @throws PGPException if the input streame contains no keys.
+     */
+    public Key(InputStream stream, char[] passphraseChars)
+    throws IOException, PGPException {
+        this(stream);
+        setPassphraseChars(passphraseChars);
+    }
+
+    /**
+     * Loads first key from the specified input stream,
+     * and sets the passphrase of all subkeys to the specified passphrase.
+     * Prefer {@link #Key(InputStream, char[])} to avoid creating
+     * extra copies of the passphrase in memory that cannot be cleaned up.
      * @throws PGPException if the input streame contains no keys.
      */
     public Key(InputStream stream, String passphrase)
@@ -161,6 +199,18 @@ public class Key {
 
     /**
      * Sets the passphrase of all subkeys.
+     * @see Subkey#setPassphraseChars
+     */
+    public void setPassphraseChars(char[] x) {
+        for (Subkey subkey : subkeys)
+            subkey.setPassphraseChars(x);
+    }
+
+    /**
+     * Sets the passphrase of all subkeys.
+     * Prefer {@link #setPassphraseChars} to avoid creating extra copies
+     * of the passphrase in memory that cannot be cleaned up.
+     * @see Subkey#setPassphraseChars
      */
     public void setPassphrase(String x) {
         for (Subkey subkey : subkeys)
@@ -363,6 +413,18 @@ public class Key {
      */
     public boolean matches(Pattern id) {
         return !findAll(id).isEmpty();
+    }
+
+    /**
+     * Zeroes-out the cached passphrase for all subkeys,
+     * and releases the extracted private key material for garbage collection.
+     * Note that if {@link #setPassphrase} is
+     * used to access the passphrase, the passphrase data cannot be zeroed
+     * (so instead use {@link #setPassphraseChars}).
+     */
+    public void clearSecrets() {
+        for (Subkey subkey : subkeys)
+            subkey.clearSecrets();
     }
 
     /**

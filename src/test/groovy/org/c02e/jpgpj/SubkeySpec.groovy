@@ -211,6 +211,22 @@ class SubkeySpec extends Specification {
         def key = new Key(stream('test-key-2.asc'), 'c02e')
         then:
         key.subkeys.privateKey*.asBoolean() == [null, true, true]
+        key.subkeys.unlocked == [false, true, true]
+    }
+
+    def "extract private key with char array passphrase"() {
+        when:
+        def passphrase = 'c02e' as char[]
+        def key = new Key(stream('test-key-2.asc'), passphrase)
+        then:
+        key.subkeys.privateKey*.asBoolean() == [null, true, true]
+        key.subkeys.unlocked == [false, true, true]
+
+        when: "original char[] is updated"
+        passphrase[0] = 'x'
+        then: "subkeys are shown to use original char[], not a copy"
+        key.subkeys.passphraseChars == (1..3).collect { 'x02e' as char[] }
+        key.subkeys.passphrase == ['x02e', 'x02e', 'x02e']
     }
 
     def "cannot extract private key from public key"() {
@@ -218,6 +234,7 @@ class SubkeySpec extends Specification {
         def key = new Key(stream('test-key-2-pub.asc'), 'c02e')
         then:
         key.subkeys.privateKey*.asBoolean() == [null, null, null]
+        key.subkeys.unlocked == [false, false, false]
     }
 
     def "cannot extract private key without correct passphrase"() {
@@ -230,6 +247,33 @@ class SubkeySpec extends Specification {
             'incorrect passphrase for subkey',
             'sec vs 013826C3 Test Key 1 <test-key-1@c02e.org>',
         ].join(' ')
+    }
+
+    def "unlock private key without caching passphrase"() {
+        when:
+        def key = new Key(stream('test-key-2.asc'))
+        key.subkeys*.unlock('c02e' as char[])
+        then:
+        key.subkeys.privateKey*.asBoolean() == [null, true, true]
+        key.subkeys.unlocked == [false, true, true]
+        key.subkeys.passphraseChars == (1..3).collect { [] as char[] }
+    }
+
+    def "clear secrets zeros passphrase and releases private key"() {
+        when:
+        def passphrase = 'c02e' as char[]
+        def key = new Key(stream('test-key-2.asc'), passphrase)
+        then:
+        key.subkeys.privateKey*.asBoolean() == [null, true, true]
+        key.subkeys.unlocked == [false, true, true]
+
+        when:
+        key.subkeys*.clearSecrets()
+        then:
+        passphrase == [0, 0, 0, 0] as char[]
+        key.subkeys.unlocked == [false, false, false]
+        key.subkeys.passphraseChars == (1..3).collect { [] as char[] }
+        key.subkeys.passphrase == ['', '', '']
     }
 
     def "empty subkey as string prints nul"() {

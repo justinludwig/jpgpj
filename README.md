@@ -54,9 +54,10 @@ throws ServletException, IOException {
     if (message == null || message.length() == 0)
         message = "the medium is the message";
 
+    Encryptor encryptor = null;
     try {
         // use Bob's public key for encryption
-        Encryptor encryptor = new Encryptor(
+        encryptor = new Encryptor(
             new Key(new File("path/to/my/keys/bob-pub.gpg"))
         );
         // use custom encryption, signing, and compression algorithms
@@ -74,7 +75,9 @@ throws ServletException, IOException {
                 subkey.setForEncryption(false);
             // unlock Alice's signing subkey with a passphrase of "password123"
             if (subkey.isForSigning())
-                subkey.setPassphrase("password123");
+                subkey.setPassphraseChars(new char[] {
+                    'p','a','s','s','w','o','r','d','1','2','3'
+                });
         }
         encryptor.getRing().getKeys().add(alice);
 
@@ -86,6 +89,10 @@ throws ServletException, IOException {
         );
     } catch (PGPException e) {
         throw new ServletException(e);
+    } finally {
+        // zero-out passphrase and release private key material for GC
+        if (encryptor != null)
+            encryptor.clearSecrets();
     }
 }
 ```

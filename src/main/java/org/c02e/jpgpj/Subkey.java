@@ -1,6 +1,7 @@
 package org.c02e.jpgpj;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -45,23 +46,38 @@ import org.c02e.jpgpj.util.Util;
  * <p>
  * However, before actually using a subkey for signing or decryption,
  * you must also set the subkey's passphrase, either via the
- * {@link #setPassphrase} method on the subkey, or the
- * {@link Key#setPassphrase} on its containing {@link Key}.
+ * {@link #setPassphraseChars} method on the subkey, or the
+ * {@link Key#setPassphraseChars} on its containing {@link Key}.
  * If the subkey does not have a passphrase, set the passphrase to the
- * {@link Key#NO_PASSPHRASE} constant.
+ * {@link Key#NO_PASSPHRASE} constant (or use {@link #setNoPassphrase}).
+ * <p>
+ * When a subkey is used for signing or decryption, its private key material
+ * is extracted and cached in memory. To release this memory, call the subkey's
+ * {@link #clearSecrets} method. This method will zero-out the subkey's
+ * passphrase (if the passphrase had been set as a char[] via
+ * {@link #setPassphraseChars}) and release the cached private key material
+ * (however, the private key material will not be zeroed-out; also, the
+ * passphrase will not be zeroed-out if it was set via {@link #setPassphrase}).
  */
 public class Subkey {
+    private static final char[] NO_PASSPHRASE = Key.NO_PASSPHRASE.toCharArray();
+    private static final char[] EMPTY_PASSPHRASE = new char[0];
+
     protected boolean forSigning;
     protected boolean forVerification;
     protected boolean forEncryption;
     protected boolean forDecryption;
+    protected char[] passphraseChars;
+    /** @deprecated Null unless explicitly set by user. */
     protected String passphrase;
     protected PGPPublicKey publicKey;
     protected PGPSecretKey secretKey;
+    /** Decrypted private key material. Null unless decrypted. */
+    protected PGPPrivateKey privateKey;
 
     /** Constructs a blank subkey. */
     public Subkey() {
-        passphrase = "";
+        setPassphraseChars(null);
     }
 
     /**
@@ -73,7 +89,7 @@ public class Subkey {
 
         StringBuilder b = new StringBuilder();
         b.append(secretKey != null ? "sec" : "pub");
-        b.append(Util.isEmpty(passphrase) ? ' ' : '+');
+        b.append(Util.isEmpty(passphraseChars) && privateKey == null ? ' ' : '+');
         if (forVerification)
             b.append('v');
         else if (forEncryption)
@@ -140,22 +156,65 @@ public class Subkey {
 
     /**
      * Passphrase needed to unlock the private part
-     * of the subkey's public key-pair; or empty string.
+     * of the subkey's public key-pair; or empty char[].
      * Use {@link Key#NO_PASSPHRASE} to signal the private part of the subkey
      * is not protected by a passphrase.
+     * Note that this char[] itself (and not a copy) will be cached and used
+     * by the subkey until {@link #clearSecrets} is called (or
+     * {@link #setPassphraseChars} is called again with a different passphrase),
+     * and then the char[] will be zeroed.
+     */
+    public char[] getPassphraseChars() {
+        return passphraseChars;
+    }
+
+    /**
+     * Passphrase needed to unlock the private part
+     * of the subkey's public key-pair; or empty char[].
+     * Use {@link Key#NO_PASSPHRASE} to signal the private part of the subkey
+     * is not protected by a passphrase.
+     * Note that this char[] itself (and not a copy) will be cached and used
+     * by the subkey until {@link #clearSecrets} is called (or
+     * {@link #setPassphraseChars} is called again with a different passphrase),
+     * and then the char[] will be zeroed.
+     */
+    public void setPassphraseChars(char[] x) {
+        if (x == null)
+            x = EMPTY_PASSPHRASE;
+
+        if (!Arrays.equals(x, passphraseChars)) {
+            clearSecrets();
+            passphraseChars = x;
+        }
+    }
+
+    /**
+     * Passphrase needed to unlock the private part
+     * of the subkey's public key-pair; or empty string.
+     * Prefer {@link #getPassphraseChars} to avoid creating extra copies
+     * of the passphrase in memory that cannot be cleaned up.
+     * Use {@link Key#NO_PASSPHRASE} to signal the private part of the subkey
+     * is not protected by a passphrase.
+     * @see #getPassphraseChars
      */
     public String getPassphrase() {
+        if (passphrase == null)
+            passphrase = new String(passphraseChars);
         return passphrase;
     }
 
     /**
      * Passphrase needed to unlock the private part
      * of the subkey's public key-pair; or empty string.
+     * Prefer {@link #setPassphraseChars} to avoid creating extra copies
+     * of the passphrase in memory that cannot be cleaned up.
      * Use {@link Key#NO_PASSPHRASE} to signal the private part of the subkey
      * is not protected by a passphrase.
+     * @see #setPassphraseChars
      */
     public void setPassphrase(String x) {
-        passphrase = x != null ? x : "";
+        setPassphraseChars(x != null ? x.toCharArray() : null);
+        passphrase = x;
     }
 
     /**
@@ -163,7 +222,7 @@ public class Subkey {
      * of the subkey's public key-pair.
      */
     public boolean isNoPassphrase() {
-        return Key.NO_PASSPHRASE.equals(passphrase);
+        return Arrays.equals(passphraseChars, NO_PASSPHRASE);
     }
 
     /**
@@ -171,7 +230,8 @@ public class Subkey {
      * of the subkey's public key-pair.
      */
     public void setNoPassphrase(boolean x) {
-        passphrase = x ? Key.NO_PASSPHRASE : "";
+        if (x != isNoPassphrase())
+            setPassphrase(x ? Key.NO_PASSPHRASE : null);
     }
 
     /**
@@ -210,13 +270,16 @@ public class Subkey {
     }
 
     /**
-     * Extracts the Bouncy castle private key material
-     * from this subkey's secret key, using the subkey's passphrase.
+     * Extracts the Bouncy castle private-key material
+     * from this subkey's secret key, using the subkey's passphrase,
+     * and caches it in memory until {@link #clearSecrets} is called.
      * @return null if this subkey does not have a secret key.
      * @throws PassphraseException if passphrase is incorrect.
      */
     public PGPPrivateKey getPrivateKey() throws PGPException {
-        return extractPrivateKey(passphrase);
+        if (privateKey == null)
+            privateKey = extractPrivateKey(passphraseChars);
+        return privateKey;
     }
 
     /**
@@ -327,14 +390,53 @@ public class Subkey {
     }
 
     /**
+     * True if the private key material has been extracted from this subkey's
+     * secret key and is currently cached in memory.
+     */
+    public boolean isUnlocked() {
+        return privateKey != null;
+    }
+
+    /**
+     * Extracts the private key material from this subkey's secret key
+     * using the specified passphrase, and caches it in memory
+     * until {@link #clearSecrets} is called. Does not cache the passphrase.
+     * Does nothing if this subkey does not have a secret key.
+     * @throws PassphraseException if passphrase is incorrect.
+     */
+    public void unlock(char[] passphraseChars) throws PGPException {
+        privateKey = extractPrivateKey(passphraseChars);
+    }
+
+    /**
+     * Zeroes-out the cached passphrase for this subkey,
+     * and releases the extracted private key material for garbage collection.
+     * Note that if {@link #getPassphrase} or {@link #setPassphrase} is
+     * used to access the passphrase, the passphrase data cannot be zeroed
+     * (so instead use {@link #getPassphraseChars} and
+     * {@link #setPassphraseChars}).
+     */
+    public void clearSecrets() {
+        // zero-out passphrase data
+        if (passphraseChars != null)
+            Arrays.fill(passphraseChars, (char) 0);
+        // flag as empty
+        passphraseChars = EMPTY_PASSPHRASE;
+        // cannot cleanup futher, release for GC
+        passphrase = null;
+        // cannot cleanup futher, release for GC
+        privateKey = null;
+    }
+
+    /**
      * Extracts the private key from this subkey's secret key
      * using the specified passphrase.
      */
-    protected PGPPrivateKey extractPrivateKey(String passphrase)
+    protected PGPPrivateKey extractPrivateKey(char[] passphraseChars)
     throws PGPException {
         if (secretKey == null) return null;
         try {
-            return secretKey.extractPrivateKey(buildDecryptor(passphrase));
+            return secretKey.extractPrivateKey(buildDecryptor(passphraseChars));
         } catch (PGPException e) {
             throw new PassphraseException(
                 "incorrect passphrase for subkey " + this, e);
@@ -344,9 +446,10 @@ public class Subkey {
     /**
      * Builds a secret key decryptor for the specified passphrase.
      */
-    protected PBESecretKeyDecryptor buildDecryptor(String passphrase) {
-        char[] chars = !Util.isEmpty(passphrase) && !isNoPassphrase() ?
-            passphrase.toCharArray() : new char[0];
+    protected PBESecretKeyDecryptor buildDecryptor(char[] passphraseChars) {
+        char[] chars = passphraseChars != null &&
+            !Arrays.equals(passphraseChars, NO_PASSPHRASE) ?
+            passphraseChars : EMPTY_PASSPHRASE;
         return new BcPBESecretKeyDecryptorBuilder(
             new BcPGPDigestCalculatorProvider()).build(chars);
     }

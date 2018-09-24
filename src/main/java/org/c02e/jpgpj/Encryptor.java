@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import org.bouncycastle.bcpg.ArmoredOutputStream;
@@ -74,6 +75,8 @@ public class Encryptor {
     protected EncryptionAlgorithm encryptionAlgorithm;
     protected HashingAlgorithm signingAlgorithm;
 
+    protected char[] symmetricPassphraseChars;
+    /** @deprecated Null unless explicitly set by user. */
     protected String symmetricPassphrase;
     protected HashingAlgorithm keyDerivationAlgorithm;
     protected int keyDerivationWorkFactor;
@@ -89,7 +92,7 @@ public class Encryptor {
         compressionAlgorithm = CompressionAlgorithm.ZLIB;
         encryptionAlgorithm = EncryptionAlgorithm.AES128;
         signingAlgorithm = HashingAlgorithm.SHA256;
-        symmetricPassphrase = "";
+        setSymmetricPassphraseChars(null);
         keyDerivationAlgorithm = HashingAlgorithm.SHA512;
         keyDerivationWorkFactor = 255;
         ring = new Ring();
@@ -180,14 +183,55 @@ public class Encryptor {
         signingAlgorithm = x != null ? x : HashingAlgorithm.Unsigned;
     }
 
-    /** Passphrase to use to encrypt with a symmetric key. */
+    /**
+     * Passphrase to use to encrypt with a symmetric key; or empty char[].
+     * Note that this char[] itself (and not a copy) will be cached and used
+     * until {@link #clearSecrets} is called (or
+     * {@link #setSymmetricPassphraseChars} is called again with a different
+     * passphrase), and then the char[] will be zeroed.
+     */
+    public char[] getSymmetricPassphraseChars() {
+        return symmetricPassphraseChars;
+    }
+
+    /**
+     * Passphrase to use to encrypt with a symmetric key; or empty char[].
+     * Note that this char[] itself (and not a copy) will be cached and used
+     * until {@link #clearSecrets} is called (or
+     * {@link #setSymmetricPassphraseChars} is called again with a different
+     * passphrase, and then the char[] will be zeroed.
+     */
+    public void setSymmetricPassphraseChars(char[] x) {
+        if (x == null)
+            x = new char[0];
+
+        if (!Arrays.equals(x, symmetricPassphraseChars)) {
+            symmetricPassphraseChars = x;
+            symmetricPassphrase = null;
+        }
+    }
+
+    /**
+     * Passphrase to use to encrypt with a symmetric key; or empty string.
+     * Prefer {@link #getSymmetricPassphraseChars} to avoid creating extra copies
+     * of the passphrase in memory that cannot be cleaned up.
+     * @see #getSymmetricPassphraseChars
+     */
     public String getSymmetricPassphrase() {
+        if (symmetricPassphrase == null)
+            symmetricPassphrase = new String(symmetricPassphraseChars);
         return symmetricPassphrase;
     }
 
-    /** Passphrase to use to encrypt with a symmetric key. */
+    /**
+     * Passphrase to use to encrypt with a symmetric key; or empty string.
+     * Prefer {@link #setSymmetricPassphraseChars} to avoid creating extra copies
+     * of the passphrase in memory that cannot be cleaned up.
+     * @see #setSymmetricPassphraseChars
+     */
     public void setSymmetricPassphrase(String x) {
-        symmetricPassphrase = x != null ? x : "";
+        setSymmetricPassphraseChars(x != null ? x.toCharArray() : null);
+        symmetricPassphrase = x;
     }
 
     /**
@@ -246,6 +290,21 @@ public class Encryptor {
     /** Keys to use for encryption and signing. */
     protected void setRing(Ring x) {
         ring = x != null ? x : new Ring();
+    }
+
+    /**
+     * Zeroes-out the cached passphrase for all keys,
+     * and releases the extracted private key material for garbage collection.
+     */
+    public void clearSecrets() {
+        ring.clearSecrets();
+
+        // zero-out symmetric passphrase data
+        Arrays.fill(symmetricPassphraseChars, (char) 0);
+        // flag as empty
+        symmetricPassphraseChars = new char[0];
+        // cannot cleanup futher, release for GC
+        symmetricPassphrase = null;
     }
 
     /**
@@ -401,14 +460,14 @@ public class Encryptor {
             return null;
 
         List<Key> keys = ring.getEncryptionKeys();
-        if (Util.isEmpty(keys) && Util.isEmpty(symmetricPassphrase))
+        if (Util.isEmpty(keys) && Util.isEmpty(symmetricPassphraseChars))
             throw new PGPException("no suitable encryption key found");
 
         PGPEncryptedDataGenerator generator = buildEncryptor();
         for (Key key : keys)
             generator.addMethod(buildPublicKeyEncryptor(key));
 
-        if (!Util.isEmpty(symmetricPassphrase))
+        if (!Util.isEmpty(symmetricPassphraseChars))
             generator.addMethod(buildSymmetricKeyEncryptor());
 
         return generator.open(out, getEncryptionBuffer(meta));
@@ -459,7 +518,7 @@ public class Encryptor {
         // skip keys without a passphrase set
         for (int i = signers.size() - 1; i >= 0; i--) {
             Subkey subkey = signers.get(i).getSigning();
-            if (subkey == null || Util.isEmpty(subkey.passphrase)) {
+            if (!isUsableForSigning(subkey)) {
                 log.info("not using signing key {}", subkey);
                 signers.remove(i);
             }
@@ -521,9 +580,14 @@ public class Encryptor {
 
         int algo = keyDerivationAlgorithm.ordinal();
         return new BcPBEKeyEncryptionMethodGenerator(
-            symmetricPassphrase.toCharArray(),
+            symmetricPassphraseChars,
             new BcPGPDigestCalculatorProvider().get(algo),
             keyDerivationWorkFactor);
+    }
+
+    protected boolean isUsableForSigning(Subkey subkey) {
+        return subkey != null && subkey.isForSigning() &&
+            (subkey.isUnlocked() || !Util.isEmpty(subkey.passphraseChars));
     }
 
     /**

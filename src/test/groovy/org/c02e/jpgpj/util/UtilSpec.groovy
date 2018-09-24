@@ -6,6 +6,14 @@ class UtilSpec extends Specification {
 
     // isEmpty
 
+    def "char array is empty when blank"() {
+        expect: Util.isEmpty([] as char[])
+    }
+
+    def "char array is not empty when not blank"() {
+        expect: !Util.isEmpty([0] as char[])
+    }
+
     def "string is empty when blank"() {
         expect: Util.isEmpty('')
     }

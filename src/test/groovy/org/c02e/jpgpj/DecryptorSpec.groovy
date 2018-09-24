@@ -264,6 +264,96 @@ pub v  BC3F6A4B
         meta.verified.keys.signingUid == ['']
     }
 
+    def "decrypt symmetric and clear passphrase"() {
+        when:
+        def passphrase = 'c02e' as char[]
+        def decryptor = new Decryptor(new Ring(stream('test-ring-pub.asc')))
+        decryptor.symmetricPassphraseChars = passphrase
+        def meta = decryptor.decrypt(stream(
+            'test-encrypted-for-key-1-and-passphrase-signed-by-key-2.txt.asc'), buf)
+        then:
+        buf.toString() == 'test\n'
+        meta.verified
+
+        when: "original char[] is updated"
+        passphrase[0] = 'x'
+        then: "decryptor is shown to use original char[], not a copy"
+        decryptor.symmetricPassphraseChars[0] == 'x'
+
+        when:
+        decryptor.decrypt stream('test-encrypted-with-passphrase.txt.asc'), buf
+        then:
+        def e = thrown(PassphraseException)
+        e.message == 'incorrect passphrase for symmetric key'
+
+        when:
+        decryptor.clearSecrets()
+        then:
+        passphrase == [0, 0, 0, 0] as char[]
+        decryptor.symmetricPassphraseChars == [] as char[]
+        decryptor.symmetricPassphrase == ''
+
+        when:
+        decryptor.decrypt stream('test-encrypted-with-passphrase.txt.asc'), buf
+        then:
+        e = thrown(DecryptionException)
+        e.message == 'no suitable decryption key found'
+    }
+
+    def "decrypt and clear secrets"() {
+        when:
+        def passphrase = 'c02e' as char[]
+        def decryptor = new Decryptor(
+            new Key(file('test-key-1.asc'), passphrase),
+            new Key(file('test-key-2-pub.asc')),
+        )
+        def meta = decryptor.decrypt(stream(
+            'test-encrypted-for-key-1-signed-by-key-2.txt.asc'), buf)
+        then:
+        buf.toString() == 'test\n'
+        meta.verified
+
+        when:
+        decryptor.clearSecrets()
+        def subkeys = decryptor.ring.keys.subkeys.flatten()
+        then:
+        passphrase == [0, 0, 0, 0] as char[]
+        subkeys.unlocked == (1..5).collect { false }
+        subkeys.passphraseChars == (1..5).collect { [] as char[] }
+        subkeys.passphrase == (1..5).collect { '' }
+
+        when:
+        decryptor.decrypt(stream(
+            'test-encrypted-for-key-1-signed-by-key-2.txt.asc'), buf)
+        then:
+        def e = thrown(DecryptionException)
+        e.message == 'no suitable decryption key found'
+    }
+
+    def "decrypt without caching passphrase"() {
+        when:
+        def decryptor = new Decryptor(
+            new Key(file('test-key-1.asc')),
+            new Key(file('test-key-2-pub.asc')),
+        )
+        // unlock just key 1 encryption subkey
+        decryptor.ring.keys.subkeys.flatten().find {
+            it.shortId == '970C7061'
+        }.unlock('c02e' as char[])
+        def meta = decryptor.decrypt(stream(
+            'test-encrypted-for-key-1-signed-by-key-2.txt.asc'), buf)
+        then:
+        buf.toString() == 'test\n'
+        meta.verified
+
+        when: "subkeys inspected"
+        def subkeys = decryptor.ring.keys.subkeys.flatten()
+        then: "only 2nd subkey of key 1 is unlocked, and no passphrases cached"
+        subkeys.unlocked == [false, true, false, false, false]
+        subkeys.passphraseChars == (1..5).collect { [] as char[] }
+        subkeys.passphrase == (1..5).collect { '' }
+    }
+
     def "decrypt with old style signature verification"() {
         when:
         def decryptor = new Decryptor(new Ring(stream('test-ring.asc')))

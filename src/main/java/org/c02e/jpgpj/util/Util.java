@@ -10,6 +10,13 @@ import java.util.regex.Pattern;
 public class Util {
 
     /**
+     * True if the specified character array is null or empty.
+     */
+    public static boolean isEmpty(char[] a) {
+        return a == null || a.length == 0;
+    }
+
+    /**
      * True if the specified string is null or empty.
      */
     public static boolean isEmpty(String s) {

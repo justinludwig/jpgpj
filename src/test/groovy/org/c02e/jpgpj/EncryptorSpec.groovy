@@ -437,6 +437,96 @@ hQEMAyne546XDHBhAQ...
         meta.verified.keys.signingUid == ['Test Key 2 <test-key-2@c02e.org>']
     }
 
+    def "encrypt symmetric and clear passphrase"() {
+        when:
+        def passphrase = 'c02e' as char[]
+        def encryptor = new Encryptor()
+        encryptor.signingAlgorithm = HashingAlgorithm.Unsigned
+        encryptor.symmetricPassphraseChars = passphrase
+        encryptor.keyDerivationWorkFactor = 10
+        encryptor.encrypt plainIn, cipherOut
+
+        def decryptor = new Decryptor()
+        decryptor.symmetricPassphrase = 'c02e'
+        decryptor.verificationRequired = false
+        decryptor.decrypt cipherIn, plainOut
+
+        then:
+        plainOut.toString() == plainText
+
+        when: "original char[] is updated"
+        passphrase[0] = 'x'
+        then: "encryptor is shown to use original char[], not a copy"
+        encryptor.symmetricPassphraseChars[0] == 'x'
+
+        when:
+        encryptor.clearSecrets()
+        then:
+        passphrase == [0, 0, 0, 0] as char[]
+        encryptor.symmetricPassphraseChars == [] as char[]
+        encryptor.symmetricPassphrase == ''
+
+        when:
+        encryptor.encrypt plainIn, cipherOut
+        then:
+        def e = thrown(PGPException)
+        e.message == 'no suitable encryption key found'
+    }
+
+    def "encrypt and sign and clear secrets"() {
+        when:
+        def passphrase = 'c02e' as char[]
+        def key = new Key(file('test-key-1.asc'), passphrase)
+        def encryptor = new Encryptor(key)
+        encryptor.encrypt plainIn, cipherOut
+
+        def decryptor = new Decryptor(key)
+        def meta = decryptor.decrypt(cipherIn, plainOut)
+
+        then:
+        plainOut.toString() == plainText
+        meta.verified
+
+        when:
+        encryptor.clearSecrets()
+        def subkeys = encryptor.ring.keys.subkeys.flatten()
+        then:
+        passphrase == [0, 0, 0, 0] as char[]
+        subkeys.unlocked == [false, false]
+        subkeys.passphraseChars == (1..2).collect { [] as char[] }
+        subkeys.passphrase == ['', '']
+
+        when:
+        encryptor.encrypt plainIn, cipherOut
+        then:
+        def e = thrown(PGPException)
+        e.message == 'no suitable signing key found'
+    }
+
+    def "sign without caching passphrase"() {
+        when:
+        def encryptor = new Encryptor(new Ring(stream('test-key-1.asc')))
+        encryptor.encryptionAlgorithm = EncryptionAlgorithm.Unencrypted
+        // unlock just key 1 signing subkey
+        encryptor.ring.keys.subkeys.flatten().find {
+            it.shortId == '013826C3'
+        }.unlock('c02e' as char[])
+        encryptor.encrypt plainIn, cipherOut
+
+        def decryptor = new Decryptor(new Ring(stream('test-key-1-pub.asc')))
+        decryptor.decrypt cipherIn, plainOut
+
+        then:
+        plainOut.toString() == plainText
+
+        when: "subkeys inspected"
+        def subkeys = encryptor.ring.keys.subkeys.flatten()
+        then: "only 1st subkey of key is 1 unlocked, and no passphrases cached"
+        subkeys.unlocked == [true, false]
+        subkeys.passphraseChars == (1..2).collect { [] as char[] }
+        subkeys.passphrase == ['', '']
+    }
+
     def "encrypt and sign with a specific uid"() {
         when:
         def encryptor = new Encryptor(new Ring(stream('test-key-2.asc')))

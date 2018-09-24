@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -69,6 +70,8 @@ import org.slf4j.LoggerFactory;
  */
 public class Decryptor {
     protected boolean verificationRequired;
+    protected char[] symmetricPassphraseChars;
+    /** @deprecated Null unless explicitly set by user. */
     protected String symmetricPassphrase;
     protected int maxFileBufferSize = 0x100000; //1MB
     protected Ring ring;
@@ -83,7 +86,7 @@ public class Decryptor {
     /** Constructs a decryptor with the specified key ring. */
     public Decryptor(Ring ring) {
         verificationRequired = true;
-        symmetricPassphrase = "";
+        setSymmetricPassphraseChars(null);
         setRing(ring);
     }
 
@@ -108,14 +111,55 @@ public class Decryptor {
         verificationRequired = x;
     }
 
-    /** Passphrase to use to decrypt with a symmetric key. */
+    /**
+     * Passphrase to use to decrypt with a symmetric key; or empty char[].
+     * Note that this char[] itself (and not a copy) will be cached and used
+     * until {@link #clearSecrets} is called (or
+     * {@link #setSymmetricPassphraseChars} is called again with a different
+     * passphrase, and then the char[] will be zeroed.
+     */
+    public char[] getSymmetricPassphraseChars() {
+        return symmetricPassphraseChars;
+    }
+
+    /**
+     * Passphrase to use to decrypt with a symmetric key; or empty char[].
+     * Note that this char[] itself (and not a copy) will be cached and used
+     * until {@link #clearSecrets} is called (or
+     * {@link #setSymmetricPassphraseChars} is called again with a different
+     * passphrase, and then the char[] will be zeroed.
+     */
+    public void setSymmetricPassphraseChars(char[] x) {
+        if (x == null)
+            x = new char[0];
+
+        if (!Arrays.equals(x, symmetricPassphraseChars)) {
+            symmetricPassphraseChars = x;
+            symmetricPassphrase = null;
+        }
+    }
+
+    /**
+     * Passphrase to use to decrypt with a symmetric key; or empty string.
+     * Prefer {@link #getSymmetricPassphraseChars} to avoid creating extra copies
+     * of the passphrase in memory that cannot be cleaned up.
+     * @see #getSymmetricPassphraseChars
+     */
     public String getSymmetricPassphrase() {
+        if (symmetricPassphrase == null)
+            symmetricPassphrase = new String(symmetricPassphraseChars);
         return symmetricPassphrase;
     }
 
-    /** Passphrase to use to decrypt with a symmetric key. */
+    /**
+     * Passphrase to use to decrypt with a symmetric key; or empty string.
+     * Prefer {@link #setSymmetricPassphraseChars} to avoid creating extra copies
+     * of the passphrase in memory that cannot be cleaned up.
+     * @see #setSymmetricPassphraseChars
+     */
     public void setSymmetricPassphrase(String x) {
-        symmetricPassphrase = x != null ? x : "";
+        setSymmetricPassphraseChars(x != null ? x.toCharArray() : null);
+        symmetricPassphrase = x;
     }
 
     public int getMaxFileBufferSize() {
@@ -138,6 +182,21 @@ public class Decryptor {
     /** Keys to use for decryption and verification. */
     protected void setRing(Ring x) {
         ring = x != null ? x : new Ring();
+    }
+
+    /**
+     * Zeroes-out the cached passphrase for all keys,
+     * and releases the extracted private key material for garbage collection.
+     */
+    public void clearSecrets() {
+        ring.clearSecrets();
+
+        // zero-out symmetric passphrase data
+        Arrays.fill(symmetricPassphraseChars, (char) 0);
+        // flag as empty
+        symmetricPassphraseChars = new char[0];
+        // cannot cleanup futher, release for GC
+        symmetricPassphrase = null;
     }
 
     /**
@@ -349,8 +408,7 @@ public class Decryptor {
 
                 for (Key key: keys) {
                     Subkey subkey = key.findById(id);
-                    if (subkey != null && subkey.isForDecryption() &&
-                            !Util.isEmpty(subkey.passphrase))
+                    if (isUsableForDecryption(subkey))
                         return decrypt(pke, subkey);
 
                     log.info("not using decryption key {}", subkey);
@@ -388,12 +446,12 @@ public class Decryptor {
      */
     protected InputStream decrypt(PGPPBEEncryptedData data)
     throws IOException, PGPException {
-        if (data == null || Util.isEmpty(symmetricPassphrase))
+        if (data == null || Util.isEmpty(symmetricPassphraseChars))
             throw new DecryptionException("no suitable decryption key found");
 
         try {
             return data.getDataStream(buildSymmetricKeyDecryptor(
-                symmetricPassphrase));
+                symmetricPassphraseChars));
         } catch (PGPDataValidationException e) {
             throw new PassphraseException(
                 "incorrect passphrase for symmetric key", e);
@@ -509,6 +567,11 @@ public class Decryptor {
         return new BcPGPContentVerifierBuilderProvider();
     }
 
+    protected boolean isUsableForDecryption(Subkey subkey) {
+        return subkey != null && subkey.isForDecryption() &&
+            (subkey.isUnlocked() || !Util.isEmpty(subkey.passphraseChars));
+    }
+
     /**
      * Builds a symmetric-encryption decryptor for the specified subkey.
      */
@@ -524,10 +587,8 @@ public class Decryptor {
      * Builds a symmetric-key decryptor for the specified passphrase.
      */
     protected PBEDataDecryptorFactory buildSymmetricKeyDecryptor(
-    String passphrase) {
-        char[] chars = !Util.isEmpty(passphrase) ?
-            passphrase.toCharArray() : new char[0];
-        return new BcPBEDataDecryptorFactory(chars,
+    char[] passphraseChars) {
+        return new BcPBEDataDecryptorFactory(passphraseChars,
             new BcPGPDigestCalculatorProvider());
     }
 

@@ -226,6 +226,15 @@ public class Ring {
     }
 
     /**
+     * Zeroes-out the cached passphrase for all keys,
+     * and releases the extracted private key material for garbage collection.
+     */
+    public void clearSecrets() {
+        for (Key key : keys)
+            key.clearSecrets();
+    }
+
+    /**
      * Loads all keys from the specified armored text,
      * and adds them to this ring's existing list of keys.
      */
