@@ -1,7 +1,6 @@
 plugins {
     id 'java'
     id 'groovy'
-    id 'com.scuilion.syntastic' version '0.3.6-java7'
 }
 
 group = 'org.c02e.jpgpj'
@@ -16,9 +15,9 @@ repositories {
 dependencies {
     compile 'org.bouncycastle:bcpg-jdk15on:1.60'
     compile 'org.slf4j:slf4j-api:1.7.25'
-    testCompile 'org.codehaus.groovy:groovy-all:2.4.13'
+    testCompile 'org.codehaus.groovy:groovy-all:2.5.2'
     testCompile 'org.slf4j:slf4j-simple:1.7.25'
-    testCompile 'org.spockframework:spock-core:1.1-groovy-2.4'
+    testCompile 'org.spockframework:spock-core:1.2-groovy-2.5'
 
 }
 
