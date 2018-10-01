@@ -6,7 +6,7 @@ plugins {
 
 group = 'org.c02e.jpgpj'
 archivesBaseName = 'jpgpj'
-version = '0.4'
+version = '0.5'
 description = 'Java Pretty Good Privacy Jig'
 
 repositories {
