@@ -12,14 +12,18 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.regex.Pattern;
+import org.bouncycastle.bcpg.ArmoredInputStream;
+import org.bouncycastle.gpg.keybox.PublicKeyRingBlob;
+import org.bouncycastle.gpg.keybox.bc.BcKeyBox;
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPObjectFactory;
 import org.bouncycastle.openpgp.PGPPublicKey;
 import org.bouncycastle.openpgp.PGPPublicKeyRing;
 import org.bouncycastle.openpgp.PGPSecretKey;
 import org.bouncycastle.openpgp.PGPSecretKeyRing;
-import org.bouncycastle.openpgp.PGPUtil;
 import org.bouncycastle.openpgp.bc.BcPGPObjectFactory;
+import org.c02e.jpgpj.util.FileDetection;
+import org.c02e.jpgpj.util.FileDetection.DetectionResult;
 import org.c02e.jpgpj.util.Util;
 
 /**
@@ -263,7 +267,7 @@ public class Ring {
     public List<Key> load(InputStream stream) throws IOException, PGPException {
         ArrayList<Key> keys = new ArrayList<Key>();
 
-        Iterator packets = parse(unarmor(stream));
+        Iterator packets = parse(stream);
         while (packets.hasNext()) {
             Object packet = packets.next();
 
@@ -271,19 +275,13 @@ public class Ring {
                 keys.add(newKey((PGPSecretKeyRing) packet));
             else if (packet instanceof PGPPublicKeyRing)
                 keys.add(newKey((PGPPublicKeyRing) packet));
+            else if (packet instanceof PublicKeyRingBlob)
+                keys.add(newKey(
+                    ((PublicKeyRingBlob) packet).getPGPPublicKeyRing()));
         }
 
         this.keys.addAll(keys);
         return keys;
-    }
-
-    /**
-     * Wraps stream with ArmoredInputStream if necessary
-     * (to convert ascii-armored content back into binary data).
-     */
-    protected InputStream unarmor(InputStream stream)
-    throws IOException, PGPException {
-        return PGPUtil.getDecoderStream(stream);
     }
 
     /**
@@ -292,7 +290,17 @@ public class Ring {
      */
     protected Iterator parse(InputStream stream)
     throws IOException, PGPException {
-        return new BcPGPObjectFactory(stream).iterator();
+        DetectionResult result = FileDetection.detectContainer(stream);
+        switch (result.type) {
+            case ASCII_ARMOR:
+                result.stream = new ArmoredInputStream(result.stream); // fall thru
+            case PGP:
+                return new BcPGPObjectFactory(result.stream).iterator();
+            case KEYBOX:
+                return new BcKeyBox(result.stream).getKeyBlobs().iterator();
+            default:
+                throw new PGPException("not a keyring");
+        }
     }
 
     protected Key newKey(ArrayList<Subkey> subkeys) {

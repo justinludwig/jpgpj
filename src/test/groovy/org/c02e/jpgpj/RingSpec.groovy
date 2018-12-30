@@ -42,6 +42,25 @@ class RingSpec extends Specification {
         ring.keys.forDecryption == [true, true]
     }
 
+    def "load keybox ring"() {
+        when:
+        def ring = new Ring(stream('test-pubring.kbx'))
+        then:
+        ring.keys.uids.flatten() == [
+            'Test Keybox 1 <test-kbx-1@c02e.org>',
+            'Test Keybox 2 <test-kbx-2@c02e.org>',
+            'Second Keybox (CODESurvey) <test-kbx-2@codesurvey.org>',
+        ]
+        ring.keys.subkeys.id.flatten() == [
+            '0xD87CAD7157196947', '0x0077D401BA4995BA',
+            '0x22B738768C6C48F8', '0x225B6180D44BFCEA', '0x96D1D02042CBE541',
+        ]
+        ring.keys.forSigning == [false, false]
+        ring.keys.forVerification == [true, true]
+        ring.keys.forEncryption == [true, true]
+        ring.keys.forDecryption == [false, false]
+    }
+
     def "load ring from file"() {
         when:
         def ring = new Ring(file('test-ring-pub.asc'))
