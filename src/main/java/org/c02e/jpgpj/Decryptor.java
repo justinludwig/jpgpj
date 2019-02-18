@@ -12,8 +12,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
-import java.util.NoSuchElementException;
 
+import org.bouncycastle.bcpg.ArmoredInputStream;
 import org.bouncycastle.openpgp.PGPCompressedData;
 import org.bouncycastle.openpgp.PGPDataValidationException;
 import org.bouncycastle.openpgp.PGPEncryptedDataList;
@@ -37,6 +37,8 @@ import org.bouncycastle.openpgp.operator.bc.BcPBEDataDecryptorFactory;
 import org.bouncycastle.openpgp.operator.bc.BcPGPContentVerifierBuilderProvider;
 import org.bouncycastle.openpgp.operator.bc.BcPGPDigestCalculatorProvider;
 import org.bouncycastle.openpgp.operator.bc.BcPublicKeyDataDecryptorFactory;
+import org.c02e.jpgpj.util.FileDetection;
+import org.c02e.jpgpj.util.FileDetection.DetectionResult;
 import org.c02e.jpgpj.util.Util;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -518,7 +520,16 @@ public class Decryptor {
      */
     protected InputStream unarmor(InputStream stream)
     throws IOException, PGPException {
-        return PGPUtil.getDecoderStream(stream);
+        DetectionResult result = FileDetection.detectContainer(stream,
+            getMaxFileBufferSize());
+        switch (result.type) {
+            case ASCII_ARMOR:
+                return new ArmoredInputStream(result.stream);
+            case PGP:
+                return result.stream;
+            default:
+                throw new PGPException("not a pgp message");
+        }
     }
 
     /**
@@ -527,37 +538,7 @@ public class Decryptor {
      */
     protected Iterator parse(InputStream stream)
     throws IOException, PGPException {
-        // before BCPG v1.55
-        // PGPObjectFactory.iterator() doesn't work for decryption
-        // because its next() method prematurely calls nextObject()
-        // for the next next object, which puts the BCPGInputStream parser
-        // into a broken state, resulting in errors like
-        // "unknown object in stream: 27"
-        //return new BcPGPObjectFactory(stream).iterator();
-        final BcPGPObjectFactory factory = new BcPGPObjectFactory(stream);
-        return new Iterator() {
-            boolean checkedNext = false;
-            Object nextElement = null;
-            public boolean hasNext() {
-                if (!checkedNext) {
-                    checkedNext = true;
-                    try {
-                        nextElement = factory.nextObject();
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
-                    }
-                }
-                return nextElement != null;
-            }
-            public Object next() {
-                if (!hasNext()) throw new NoSuchElementException();
-                checkedNext = false;
-                return nextElement;
-            }
-            public void remove() {
-                throw new UnsupportedOperationException();
-            }
-        };
+        return new BcPGPObjectFactory(stream).iterator();
     }
 
     /**

@@ -1,6 +1,7 @@
 package org.c02e.jpgpj
 
 import java.text.SimpleDateFormat
+import org.bouncycastle.openpgp.PGPException;
 import spock.lang.Specification
 
 class DecryptorSpec extends Specification {
@@ -422,6 +423,54 @@ pub v  BC3F6A4B
         e.message == 'content not signed with a required key'
     }
 
+    def "decrypt null stream"() {
+        when:
+        def decryptor = new Decryptor()
+        decryptor.decrypt null, buf
+        then:
+        def e = thrown(PGPException)
+        e.message == 'not a pgp message'
+    }
+
+    def "decrypt empty message"() {
+        when:
+        def decryptor = new Decryptor()
+        decryptor.decrypt content(''), buf
+        then:
+        def e = thrown(PGPException)
+        e.message == 'not a pgp message'
+    }
+
+    def "decrypt garbage"() {
+        when:
+        def decryptor = new Decryptor()
+        decryptor.decrypt content('garbage'), buf
+        then:
+        def e = thrown(PGPException)
+        e.message == 'not a pgp message'
+    }
+
+    def "decrypt stream without mark support"() {
+        when:
+        def decryptor = new Decryptor(
+            new Key(markUnsupported('test-key-1.asc'), 'c02e'),
+            new Key(markUnsupported('test-key-2-pub.asc')),
+        )
+        def meta = decryptor.decrypt(markUnsupported(
+            'test-encrypted-for-key-1-signed-by-key-2.txt.asc'), buf)
+        then:
+        buf.toString() == 'test\n'
+        meta.verified
+    }
+
+    protected markUnsupported(s) {
+        return new MarkUnsupportedInputStream(stream(s))
+    }
+
+    protected content(s) {
+        new ByteArrayInputStream(s.bytes)
+    }
+
     protected stream(s) {
         getClass().classLoader.getResourceAsStream s
     }
@@ -443,4 +492,14 @@ pub v  BC3F6A4B
         return f
     }
 
+}
+
+class MarkUnsupportedInputStream extends BufferedInputStream {
+    MarkUnsupportedInputStream(InputStream wrapped) {
+        super(wrapped)
+    }
+
+    boolean markSupported() {
+        return false
+    }
 }
