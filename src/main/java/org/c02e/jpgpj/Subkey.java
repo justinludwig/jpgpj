@@ -1,22 +1,13 @@
 package org.c02e.jpgpj;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-import java.util.regex.Pattern;
-import org.bouncycastle.openpgp.PGPException;
-import org.bouncycastle.openpgp.PGPKeyFlags;
-import org.bouncycastle.openpgp.PGPPrivateKey;
-import org.bouncycastle.openpgp.PGPPublicKey;
-import org.bouncycastle.openpgp.PGPSecretKey;
-import org.bouncycastle.openpgp.PGPSignature;
-import org.bouncycastle.openpgp.PGPSignatureSubpacketVector;
+import org.bouncycastle.openpgp.*;
 import org.bouncycastle.openpgp.operator.PBESecretKeyDecryptor;
 import org.bouncycastle.openpgp.operator.bc.BcPBESecretKeyDecryptorBuilder;
 import org.bouncycastle.openpgp.operator.bc.BcPGPDigestCalculatorProvider;
 import org.c02e.jpgpj.util.Util;
+
+import java.util.*;
+import java.util.regex.Pattern;
 
 /**
  * A single public-key pair from a full {@link Key}. It may consist of only
@@ -459,19 +450,31 @@ public class Subkey {
      */
     protected void calculateUsage() throws PGPException {
         int flags = getUsageFlags();
+        boolean usageFlagsNotPresent = (flags == 0 && publicKey != null);
 
+        if (usageFlagsNotPresent) {
+            thenSetThemAll();
+            return;
+        }
         boolean canSign = (flags & PGPKeyFlags.CAN_SIGN) ==
-            PGPKeyFlags.CAN_SIGN;
+                PGPKeyFlags.CAN_SIGN;
         boolean canEncrypt = ((flags & PGPKeyFlags.CAN_ENCRYPT_COMMS) ==
                 PGPKeyFlags.CAN_ENCRYPT_COMMS) ||
-            ((flags & PGPKeyFlags.CAN_ENCRYPT_STORAGE) ==
-                PGPKeyFlags.CAN_ENCRYPT_STORAGE);
+                ((flags & PGPKeyFlags.CAN_ENCRYPT_STORAGE) ==
+                        PGPKeyFlags.CAN_ENCRYPT_STORAGE);
 
         forSigning = canSign &&
-            secretKey != null && !secretKey.isPrivateKeyEmpty();
+                secretKey != null && !secretKey.isPrivateKeyEmpty();
         forVerification = canSign;
         forEncryption = canEncrypt;
         forDecryption = canEncrypt &&
-            secretKey != null && !secretKey.isPrivateKeyEmpty();
+                secretKey != null && !secretKey.isPrivateKeyEmpty();
+    }
+
+    private void thenSetThemAll() {
+        forSigning = true;
+        forVerification =true;
+        forEncryption = true;
+        forDecryption = true;
     }
 }
