@@ -206,6 +206,58 @@ class SubkeySpec extends Specification {
         key.subkeys.forDecryption == [false, true, false]
     }
 
+    def "secret key with no usage flags not used for anything by default"() {
+        when:
+        def key = new Key(stream('test-no-usage-3-subkeys.asc'))
+        then:
+        key.subkeys.forSigning == [false, false, false]
+        key.subkeys.forVerification == [false, false, false]
+        key.subkeys.forEncryption == [false, false, false]
+        key.subkeys.forDecryption == [false, false, false]
+    }
+
+    def "rsa public key is technically usable for verification and encryption"() {
+        when:
+        def key = new Key(stream('test-key-2-pub.asc'))
+        then:
+        key.subkeys.usableForSigning == [false, false, false]
+        key.subkeys.usableForVerification == [true, true, true]
+        key.subkeys.usableForEncryption == [true, true, true]
+        key.subkeys.usableForDecryption == [false, false, false]
+    }
+
+    def "rsa secret key is technically usable for all usages"() {
+        when:
+        def key = new Key(stream('test-key-2-master.asc'))
+        then:
+        key.subkeys.usableForSigning == [true, true, true]
+        key.subkeys.usableForVerification == [true, true, true]
+        key.subkeys.usableForEncryption == [true, true, true]
+        key.subkeys.usableForDecryption == [true, true, true]
+    }
+
+    def "rsa secret key with no flags is technically usable for all usages"() {
+        when:
+        def key = new Key(stream('test-no-usage-3-subkeys.asc'))
+        then:
+        key.subkeys.usableForSigning == [true, true, true]
+        key.subkeys.usableForVerification == [true, true, true]
+        key.subkeys.usableForEncryption == [true, true, true]
+        key.subkeys.usableForDecryption == [true, true, true]
+    }
+
+    def "ec secret key is technically usable only for e/d or v/s"() {
+        when:
+        // first 2 subkeys of this key are ecdsa (verification/signing)
+        // and 3rd subkey is ecdh (encryption/decryption)
+        def key = new Key(stream('test-no-usage-ec-subkeys.asc'))
+        then:
+        key.subkeys.usableForSigning == [true, true, false]
+        key.subkeys.usableForVerification == [true, true, false]
+        key.subkeys.usableForEncryption == [false, false, true]
+        key.subkeys.usableForDecryption == [false, false, true]
+    }
+
     def "extract private key"() {
         when:
         def key = new Key(stream('test-key-2.asc'), 'c02e')

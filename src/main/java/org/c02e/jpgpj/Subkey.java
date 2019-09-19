@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.regex.Pattern;
+import org.bouncycastle.bcpg.PublicKeyAlgorithmTags;
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPKeyFlags;
 import org.bouncycastle.openpgp.PGPPrivateKey;
@@ -29,10 +30,10 @@ import org.c02e.jpgpj.util.Util;
  * <p>
  * The purpose of a subkey is indicated by these four methods:
  * <ul>
- * <li>{@link #isForSigning}: true if can be used for signing messages
- * <li>{@link #isForVerification}: true if can be used for verifying messages
- * <li>{@link #isForEncryption}: true if can be used for encrypting messages
- * <li>{@link #isForDecryption}: true if can be used for decrypting messages
+ * <li>{@link #isForSigning}: true if should be used for signing messages
+ * <li>{@link #isForVerification}: true if should be used for verifying messages
+ * <li>{@link #isForEncryption}: true if should be used for encrypting messages
+ * <li>{@link #isForDecryption}: true if should be used for decrypting messages
  * </ul>
  * <p>
  * By default, when a subkey with a "sign data" flag is loaded, its
@@ -114,44 +115,71 @@ public class Subkey {
         return b.toString();
     }
 
-    /** True if the subkey can be used for signing messages. */
+    /** True if the subkey should be used for signing messages. */
     public boolean isForSigning() {
         return forSigning;
     }
 
-    /** True if the subkey can be used for signing messages. */
+    /** True if the subkey should be used for signing messages. */
     public void setForSigning(boolean x) {
         forSigning = x;
     }
 
-    /** True if the subkey can be used for verifying messages. */
+    /** True if the subkey should be used for verifying messages. */
     public boolean isForVerification() {
         return forVerification;
     }
 
-    /** True if the subkey can be used for verifying messages. */
+    /** True if the subkey should be used for verifying messages. */
     public void setForVerification(boolean x) {
         forVerification = x;
     }
 
-    /** True if the subkey can be used for encrypting messages. */
+    /** True if the subkey should be used for encrypting messages. */
     public boolean isForEncryption() {
         return forEncryption;
     }
 
-    /** True if the subkey can be used for encrypting messages. */
+    /** True if the subkey should be used for encrypting messages. */
     public void setForEncryption(boolean x) {
         forEncryption = x;
     }
 
-    /** True if the subkey can be used for decrypting messages. */
+    /** True if the subkey should be used for decrypting messages. */
     public boolean isForDecryption() {
         return forDecryption;
     }
 
-    /** True if the subkey can be used for decrypting messages. */
+    /** True if the subkey should be used for decrypting messages. */
     public void setForDecryption(boolean x) {
         forDecryption = x;
+    }
+
+    /** True if technically usable for signing. */
+    public boolean isUsableForSigning() {
+        return isUsableForVerification() &&
+            secretKey != null && !secretKey.isPrivateKeyEmpty();
+    }
+
+    /** True if technically usable for verification. */
+    public boolean isUsableForVerification() {
+        int algorithm = publicKey != null ? publicKey.getAlgorithm() : 0;
+        return algorithm == PublicKeyAlgorithmTags.RSA_GENERAL ||
+               algorithm == PublicKeyAlgorithmTags.RSA_SIGN ||
+               algorithm == PublicKeyAlgorithmTags.DSA ||
+               algorithm == PublicKeyAlgorithmTags.ECDSA ||
+               algorithm == PublicKeyAlgorithmTags.EDDSA;
+    }
+
+    /** True if technically usable for encryption. */
+    public boolean isUsableForEncryption() {
+        return publicKey != null && publicKey.isEncryptionKey();
+    }
+
+    /** True if technically usable for decryption. */
+    public boolean isUsableForDecryption() {
+        return isUsableForEncryption() &&
+            secretKey != null && !secretKey.isPrivateKeyEmpty();
     }
 
     /**
@@ -467,11 +495,9 @@ public class Subkey {
             ((flags & PGPKeyFlags.CAN_ENCRYPT_STORAGE) ==
                 PGPKeyFlags.CAN_ENCRYPT_STORAGE);
 
-        forSigning = canSign &&
-            secretKey != null && !secretKey.isPrivateKeyEmpty();
-        forVerification = canSign;
-        forEncryption = canEncrypt;
-        forDecryption = canEncrypt &&
-            secretKey != null && !secretKey.isPrivateKeyEmpty();
+        forSigning = canSign && isUsableForSigning();
+        forVerification = canSign && isUsableForVerification();
+        forEncryption = canEncrypt && isUsableForEncryption();
+        forDecryption = canEncrypt && isUsableForDecryption();
     }
 }

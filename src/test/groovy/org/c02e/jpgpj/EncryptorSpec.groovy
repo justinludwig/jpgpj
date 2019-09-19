@@ -1,5 +1,9 @@
 package org.c02e.jpgpj
 
+import org.c02e.jpgpj.key.KeyForDecryption
+import org.c02e.jpgpj.key.KeyForEncryption
+import org.c02e.jpgpj.key.KeyForSigning
+import org.c02e.jpgpj.key.KeyForVerification
 import org.bouncycastle.openpgp.PGPException
 import spock.lang.Specification
 
@@ -612,6 +616,25 @@ hQEMAyne546XDHBhAQ...
 
         def decryptor = new Decryptor(new Ring(stream('test-key-no-passphrase.asc')))
         decryptor.ring.keys*.noPassphrase = true
+        def meta = decryptor.decrypt(cipherIn, plainOut)
+
+        then:
+        plainOut.toString() == plainText
+        meta.verified
+    }
+
+    def "encrypt and sign with no usage flags"() {
+        when:
+        def encryptor = new Encryptor(
+            new KeyForEncryption(file('test-no-usage-ec-subkeys.asc')),
+            new KeyForSigning(file('test-no-usage-ec-subkeys.asc'), 'c02e'),
+        )
+        encryptor.encrypt plainIn, cipherOut
+
+        def decryptor = new Decryptor(
+            new KeyForVerification(file('test-no-usage-ec-subkeys.asc')),
+            new KeyForDecryption(file('test-no-usage-ec-subkeys.asc'), 'c02e'),
+        )
         def meta = decryptor.decrypt(cipherIn, plainOut)
 
         then:
