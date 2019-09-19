@@ -254,7 +254,7 @@ class EncryptorSpec extends Specification {
             replaceFirst(/(?m)^(hQEMAyne546XDHBhAQ)[\w\+\/\n]+[\w\+\/]={0,2}/, '$1...').
             replaceFirst(/(?m)^=[\w\+\/]+/, '=1234') == '''
 -----BEGIN PGP MESSAGE-----
-Version: BCPG v1.61
+Version: BCPG v1.63
 
 hQEMAyne546XDHBhAQ...
 =1234
