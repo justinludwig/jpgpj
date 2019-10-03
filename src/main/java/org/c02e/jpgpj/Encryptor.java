@@ -664,20 +664,28 @@ public class Encryptor {
         return len;
     }
 
-    private int estimateOutFileSize(long inFileSize) {
-        if (inFileSize > maxFileBufferSize) return maxFileBufferSize;
-        else {
-            long outFileSize = inFileSize;
-            outFileSize += (1 + getRing().getEncryptionKeys().size() +
-                getRing().getSigningKeys().size()) * 512;
-            if (isAsciiArmored()) {
-                outFileSize *= (4f / 3) *
-                    ((64f + Strings.lineSeparator().length()) / 64);
-                outFileSize += 80;
-            }
-            return (outFileSize >= maxFileBufferSize) ?
-                maxFileBufferSize : (int) outFileSize;
+    protected int estimateOutFileSize(long inFileSize) {
+        if (inFileSize >= maxFileBufferSize) return maxFileBufferSize;
+
+        // start with size of original input file
+        long outFileSize = inFileSize;
+        // then add ~500 bytes for each key, plus ~500 for misc pgp headers
+        outFileSize += (
+            getRing().getEncryptionKeys().size() +
+            getRing().getSigningKeys().size() + 1
+        ) * 512;
+
+        if (asciiArmored) {
+            outFileSize *=
+                // multiply by 4/3 for base64 encoding
+                (4f / 3) *
+                // and 65/64 (or 66/64) for line feed every 64 (encoded) chars
+                ((64f + Strings.lineSeparator().length()) / 64);
+            // then add ~80 chars for armor headers/trailers
+            outFileSize += 80;
         }
+
+        return (int) Math.min(outFileSize, (long) maxFileBufferSize);
     }
 
     protected class SigningOutputStream extends FilterOutputStream {
