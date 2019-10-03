@@ -55,4 +55,75 @@ class UtilSpec extends Specification {
     def "biggest key formats correctly"() {
         expect: Util.formatKeyId(0xffffffffffffffffL) == '0xFFFFFFFFFFFFFFFF'
     }
+
+    // bestFileBufferSize
+
+    def "best file buffer size is no smaller than 1"() {
+        expect:
+        Util.bestFileBufferSize(fileSize, maxSize) == expectedSize
+        where:
+        fileSize << [
+            -1, -1, -1,
+            0, 0, 0,
+            1, 1, 1,
+        ]
+        maxSize << [
+            -1, 0, 1,
+            -1, 0, 1,
+            -1, 0, 1,
+        ]
+        expectedSize << [
+            1, 1, 1,
+            1, 1, 1,
+            1, 1, 1,
+        ]
+    }
+
+    def "best file buffer size is no larger than file size"() {
+        expect:
+        Util.bestFileBufferSize(fileSize, maxSize) == expectedSize
+        where:
+        fileSize << [
+            -1, 0, 1,
+            0x1000, 0xffff, 0x10000,
+            0xfffff, 0x100000, 0x100001,
+            0x10000000, 0xffffffffL, 0x100000000000L,
+        ]
+        maxSize << [
+            Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE,
+            Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE,
+            Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE,
+            Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE,
+        ]
+        expectedSize << [
+            1, 1, 1,
+            0x1000, 0xffff, 0x10000,
+            0xfffff, 0x100000, 0x100001,
+            0x10000000, Integer.MAX_VALUE, Integer.MAX_VALUE,
+        ]
+    }
+
+    def "best file buffer size is no larger than max buffer size"() {
+        expect:
+        Util.bestFileBufferSize(fileSize, maxSize) == expectedSize
+        where:
+        fileSize << [
+            Long.MAX_VALUE, Long.MAX_VALUE, Long.MAX_VALUE,
+            Long.MAX_VALUE, Long.MAX_VALUE, Long.MAX_VALUE,
+            Long.MAX_VALUE, Long.MAX_VALUE, Long.MAX_VALUE,
+            Long.MAX_VALUE, Long.MAX_VALUE, Long.MAX_VALUE,
+        ]
+        maxSize << [
+            -1, 0, 1,
+            0x1000, 0xffff, 0x10000,
+            0xfffff, 0x100000, 0x100001,
+            0x10000000, Integer.MAX_VALUE, Integer.MIN_VALUE,
+        ]
+        expectedSize << [
+            1, 1, 1,
+            0x1000, 0xffff, 0x10000,
+            0xfffff, 0x100000, 0x100001,
+            0x10000000, Integer.MAX_VALUE, 1,
+        ]
+    }
 }

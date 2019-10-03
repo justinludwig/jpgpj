@@ -2,7 +2,6 @@ package org.c02e.jpgpj.util;
 
 import java.util.Collection;
 import java.util.Map;
-import java.util.regex.Pattern;
 
 /**
  * Utility functions, used internally by JPGPJ.
@@ -60,12 +59,12 @@ public class Util {
         return new String(chars);
     }
 
-  /**
-   * Returns the exact fileSize with a maximum of maxFileBufferSize.
-   */
+    /**
+     * Returns the exact fileSize with a maximum of maxFileBufferSize
+     * and a minimum of 1.
+     */
     public static int bestFileBufferSize(long fileSize, int maxFileBufferSize) {
-        return (fileSize>=maxFileBufferSize) ?
-            maxFileBufferSize : (int) fileSize;
+        return Math.max((int) Math.min(fileSize, (long) maxFileBufferSize), 1);
     }
 
 }

@@ -283,6 +283,22 @@ hQEMAyne546XDHBhAQ...
         meta.verified
     }
 
+    def "encrypt and sign zero-byte file"() {
+        when:
+        def encryptor = new Encryptor(new Key(file('test-key-1.asc'), 'c02e'))
+        def plainFile = testFile, cipherFile = testFile
+        encryptor.encrypt plainFile, cipherFile
+
+        def decryptor = new Decryptor(new Key(file('test-key-1.asc'), 'c02e'))
+        def resultFile = testFile
+        def meta = decryptor.decrypt(cipherFile, resultFile)
+
+        then:
+        resultFile.length() == 0
+        meta.length == 0
+        meta.verified
+    }
+
     def "encrypt and sign file without passphrase"() {
         when:
         def encryptor = new Encryptor(new Key(file('test-key-1.asc')))
@@ -765,7 +781,7 @@ hQEMAyne546XDHBhAQ...
         inputSize << [0, 1, 0x1000, 0xabcd, 0x10000]
     }
 
-    def "encrypt and sign a big file"() {
+    def "encrypt and sign a big stream"() {
         setup:
         // 1MB of zeros
         def plainIn = new ByteArrayInputStream(new byte[0x100000])
