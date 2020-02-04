@@ -1,3 +1,45 @@
 build
 .gradle
 .syntastic_javac_config
+
+# e.g. gradle.jar
+*.jar
+
+# IDE related files
+bin/
+lib/
+target/
+Servers/
+.metadata/
+.recommenders/
+.settings/
+RemoteSystemsTempFiles/
+.classpath
+.project
+# Python related files
+.pydevproject
+*.pyc
+.checkstyle
+.eclipse-pmd
+.pmd
+*.iml
+*.ipr
+*.iws
+.idea
+.springBeans
+.externalToolBuilders
+
+# Pre-release temporary files
+*.releaseBackup
+release.properties
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# Serialized objects
+*.ser
+
+# Locks and temporary files
+*~
+.attach_pid*
