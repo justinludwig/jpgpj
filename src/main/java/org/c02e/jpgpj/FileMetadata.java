@@ -2,6 +2,7 @@ package org.c02e.jpgpj;
 
 import java.io.File;
 import java.util.Date;
+
 import org.bouncycastle.openpgp.PGPLiteralData;
 import org.bouncycastle.openpgp.PGPSignature;
 
@@ -161,5 +162,15 @@ public class FileMetadata {
     public int getSignatureType() {
         return format == Format.TEXT || format == Format.UTF8 ?
             PGPSignature.CANONICAL_TEXT_DOCUMENT : PGPSignature.BINARY_DOCUMENT;
+    }
+
+    @Override
+    public String toString() {
+        return getClass().getSimpleName()
+            + "[name=" + getName()
+            + ", length=" + getLength()
+            + ", format=" + getFormat()
+            + ", lastModified=" + getLastModifiedDate()
+            + "]";
     }
 }
