@@ -70,6 +70,8 @@ import org.slf4j.LoggerFactory;
  * }</pre>
  */
 public class Encryptor {
+    public static final int MAX_ENCRYPT_COPY_BUFFER_SIZE = 0x10000;
+
     protected boolean asciiArmored;
     protected int compressionLevel;
 
@@ -330,13 +332,15 @@ public class Encryptor {
      * for one of the signing keys.
      */
     public void encrypt(File plaintext, File ciphertext)
-    throws IOException, PGPException {
+            throws IOException, PGPException {
         if (plaintext.equals(ciphertext))
             throw new IOException("cannot encrypt " + plaintext +
                 " over itself");
 
         // delete old output file
-        ciphertext.delete();
+        if (ciphertext.delete()) {
+            log.debug("encrypt({}) deleted {}", plaintext, ciphertext);
+        }
 
         InputStream input = null;
         OutputStream output = null;
@@ -356,8 +360,7 @@ public class Encryptor {
                     output.close();
                     ciphertext.delete();
                 } catch (Exception ee) {
-                    log.error("failed to delete bad output file {}",
-                        plaintext, ee);
+                    log.error("failed to delete bad output file " + plaintext, ee);
                 }
             throw e;
         } finally {
@@ -385,7 +388,7 @@ public class Encryptor {
      * for one of the signing keys.
      */
     public void encrypt(InputStream plaintext, OutputStream ciphertext)
-    throws IOException, PGPException {
+            throws IOException, PGPException {
         encrypt(plaintext, ciphertext, null);
     }
 
@@ -408,13 +411,68 @@ public class Encryptor {
      * @throws PassphraseException if an incorrect passphrase was supplied
      * for one of the signing keys.
      */
-    public void encrypt(InputStream plaintext, OutputStream ciphertext,
-    FileMetadata meta) throws IOException, PGPException {
+    public void encrypt(
+        InputStream plaintext, OutputStream ciphertext, FileMetadata meta)
+            throws IOException, PGPException {
+        if (meta == null) {
+            meta = new FileMetadata();
+        }
+
+        try (OutputStream targetStream = prepareCiphertextOutputStream(ciphertext, meta)) {
+            // copy plaintext bytes into encryption pipeline
+            copy(plaintext, targetStream, null /* signer is inside the target */, meta);
+        }
+    }
+
+    public OutputStream prepareCiphertextOutputStream(File ciphertext)
+            throws IOException, PGPException {
+        // delete old output file
+        if (ciphertext.delete()) {
+            log.debug("prepareCiphertextOutputStream - deleted {}", ciphertext);
+        }
+
+        FileMetadata meta = new FileMetadata(ciphertext);
+        OutputStream fileStream = null;
+        try {
+            fileStream = new FileOutputStream(ciphertext);
+            OutputStream wrapper = prepareCiphertextOutputStream(fileStream, meta);
+            fileStream = null;  // avoid auto-close at finally clause
+            return wrapper;
+        } catch(Exception e) {
+            // delete output file if anything went wrong
+            if (fileStream != null) {
+                ciphertext.delete();
+            }
+            throw e;
+        } finally {
+            if (fileStream != null) {
+                fileStream.close();
+            }
+        }
+    }
+
+    /**
+     * Prepares an {@link OutputStream} - so that everything written to it
+     * is encrypted+compressed+signed - according to the encryptor's configuration
+     *
+     * @param ciphertext The original {@link OutputStream} into which the
+     * encryption results are to be written. <B>Note:</B> the stream will
+     * not be closed when the returned wrapper is closed
+     * @param meta The {@link FileMetadata} - if {@code null} an ad-hoc
+     * empty instance is used
+     * @return A wrapper stream - <B>Note:</B> actual encryption and signature
+     * is finalized when it is closed.
+     * @throws IOException If failed to wrap the stream
+     * @throws PGPException If failed to apply a PGP wraper
+     */
+    public OutputStream prepareCiphertextOutputStream(
+            OutputStream ciphertext, FileMetadata meta)
+                throws IOException, PGPException {
         if (meta == null)
             meta = new FileMetadata();
 
         // stack of output streams to close at end of process
-        ArrayList<OutputStream> stack = new ArrayList<OutputStream>(6);
+        List<OutputStream> stack = new ArrayList<OutputStream>(6);
         stack.add(ciphertext);
 
         // setup encryption pipeline
@@ -424,13 +482,74 @@ public class Encryptor {
         SigningOutputStream signingstream = sign(ciphertext, meta);
         ciphertext = pipeline(signingstream, stack);
         ciphertext = pipeline(packet(ciphertext, meta), stack);
+        return new EncryptorWrapperStream(ciphertext, signingstream, stack);
+    }
 
-        // copy plaintext bytes into encryption pipeline
-        copy(plaintext, ciphertext, signingstream, meta);
+    protected static class EncryptorWrapperStream extends FilterOutputStream {
+        protected final AtomicBoolean finished = new AtomicBoolean(false);
+        protected final SigningOutputStream signingstream;
+        protected final List<? extends OutputStream> stack;
+        protected final byte[] oneByte = { 0 };
+        protected EncryptorWrapperStream(
+                OutputStream ciphertext, SigningOutputStream signer, List<? extends OutputStream> wrappers) {
+            super(ciphertext);
 
-        // close all output streams except original at end of process
-        for (int i = stack.size() - 1; i > 0; i--)
-            stack.get(i).close();
+            signingstream = signer;
+            stack = wrappers;
+        }
+
+        @Override
+        public void write(int b) throws IOException {
+            oneByte[0] = (byte) b;
+            write(oneByte, 0, 1);
+        }
+
+        @Override   // just making sure
+        public void write(byte b[]) throws IOException {
+            write(b, 0, b.length);
+        }
+
+        @Override
+        public void write(byte[] b, int off, int len) throws IOException {
+            // FilterOutputStream implements it by writing one byte at a time
+            if (signingstream != null) {
+                signingstream.update(b, off, len);
+            }
+            out.write(b, off, len);
+        }
+
+        @Override
+        public void close() throws IOException {
+            // Ignore if already closed
+            if (finished.getAndSet(true)) {
+                return;
+            }
+
+            flush();
+
+            finish();
+        }
+
+        protected void finish() throws IOException {
+            // close all output streams except original at end of process
+            IOException err = null;
+            for (int i = stack.size() - 1; i > 0; i--) {
+                OutputStream outputStream = stack.get(i);
+                try {
+                    outputStream.close();
+                } catch (IOException e) {
+                    if (err == null) {
+                        err = e;
+                    } else {
+                        err.addSuppressed(e);
+                    }
+                }
+            }
+
+            if (err != null) {
+                throw err;
+            }
+        }
     }
 
     /**
@@ -644,9 +763,9 @@ public class Encryptor {
     }
 
     protected byte[] getCopyBuffer(FileMetadata meta) {
-        int len = (int) meta.getLength();
-        if (len <= 0 || len > 0x10000)
-            len = 0x10000;
+        int len = (meta == null) ? 0 : (int) meta.getLength();
+        if (len <= 0 || len > MAX_ENCRYPT_COPY_BUFFER_SIZE)
+            len = MAX_ENCRYPT_COPY_BUFFER_SIZE;
         return new byte[len];
     }
 
