@@ -13,6 +13,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
+
 import org.bouncycastle.bcpg.ArmoredOutputStream;
 import org.bouncycastle.openpgp.PGPCompressedDataGenerator;
 import org.bouncycastle.openpgp.PGPEncryptedDataGenerator;
@@ -77,6 +79,7 @@ public class Encryptor {
 
     protected char[] symmetricPassphraseChars;
     /** @deprecated Null unless explicitly set by user. */
+    @Deprecated
     protected String symmetricPassphrase;
     protected HashingAlgorithm keyDerivationAlgorithm;
     protected int keyDerivationWorkFactor;
@@ -84,7 +87,7 @@ public class Encryptor {
     protected int maxFileBufferSize = 0x100000; //1MB
 
     protected Ring ring;
-    protected Logger log = LoggerFactory.getLogger(Encryptor.class.getName());
+    protected final Logger log = LoggerFactory.getLogger(Encryptor.class.getName());
 
     /** Constructs an encryptor with an empty key ring. */
     public Encryptor() {
@@ -685,10 +688,11 @@ public class Encryptor {
             outFileSize += 80;
         }
 
-        return (int) Math.min(outFileSize, (long) maxFileBufferSize);
+        return (int) Math.min(outFileSize, maxFileBufferSize);
     }
 
     protected class SigningOutputStream extends FilterOutputStream {
+        protected final AtomicBoolean finished = new AtomicBoolean(false);
         protected FileMetadata meta;
         protected List<PGPSignatureGenerator> sigs;
 
@@ -701,8 +705,21 @@ public class Encryptor {
 
         // OutputStream
 
+        @Override
+        public void write(byte[] b, int off, int len) throws IOException {
+            // FilterOutputStream implements it by writing one byte at a time
+            out.write(b, off, len);
+        }
+
+        @Override
         public void close() throws IOException {
+            // Ignore if already closed
+            if (finished.getAndSet(true)) {
+                return;
+            }
+
             flush();
+
             try {
                 finish();
             } catch (PGPException e) {
