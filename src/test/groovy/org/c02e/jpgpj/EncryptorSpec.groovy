@@ -277,7 +277,8 @@ hQEMAyne546XDHBhAQ...
 
         meta.name == plainFile.name
         meta.length == plainText.length()
-        meta.lastModified == plainFile.lastModified()
+        // milliseconds are not preserved
+        (meta.lastModified / 1000L) == (long) (plainFile.lastModified() / 1000L)
         meta.format == FileMetadata.Format.BINARY
 
         meta.verified
@@ -588,7 +589,7 @@ hQEMAyne546XDHBhAQ...
         meta.name == src.name
         meta.length == src.length
         // milliseconds are not preserved
-        meta.lastModified == 12345000
+        (meta.lastModified / 1000L) == 12345L
         meta.format == src.format
 
         !meta.verified
@@ -614,7 +615,7 @@ hQEMAyne546XDHBhAQ...
         meta.name == src.name
         meta.length == src.length
         // milliseconds are not preserved
-        meta.lastModified == 12345000
+        (meta.lastModified / 1000L) == 12345L
         meta.format == src.format
 
         meta.verified.keys.uids.flatten() == [
