@@ -20,6 +20,7 @@ import org.bouncycastle.openpgp.PGPEncryptedDataList;
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPLiteralData;
 import org.bouncycastle.openpgp.PGPMarker;
+import org.bouncycastle.openpgp.PGPObjectFactory;
 import org.bouncycastle.openpgp.PGPOnePassSignature;
 import org.bouncycastle.openpgp.PGPOnePassSignatureList;
 import org.bouncycastle.openpgp.PGPPBEEncryptedData;
@@ -28,7 +29,6 @@ import org.bouncycastle.openpgp.PGPPublicKeyEncryptedData;
 import org.bouncycastle.openpgp.PGPSignature;
 import org.bouncycastle.openpgp.PGPSignatureList;
 import org.bouncycastle.openpgp.PGPSignatureSubpacketVector;
-import org.bouncycastle.openpgp.PGPUtil;
 import org.bouncycastle.openpgp.bc.BcPGPObjectFactory;
 import org.bouncycastle.openpgp.operator.PBEDataDecryptorFactory;
 import org.bouncycastle.openpgp.operator.PGPContentVerifierBuilderProvider;
@@ -74,6 +74,7 @@ public class Decryptor {
     protected boolean verificationRequired;
     protected char[] symmetricPassphraseChars;
     /** @deprecated Null unless explicitly set by user. */
+    @Deprecated
     protected String symmetricPassphrase;
     protected int maxFileBufferSize = 0x100000; //1MB
     protected Ring ring;
@@ -298,7 +299,7 @@ public class Decryptor {
      * Recursively unpacks the pgp message packets,
      * writing the decrypted message content into the output stream.
      */
-    protected List<FileMetadata> unpack(Iterator packets,
+    protected List<FileMetadata> unpack(Iterator<?> packets,
     OutputStream plaintext) throws IOException, PGPException {
         List<FileMetadata> meta = new ArrayList<FileMetadata>();
         List<Verifier> verifiers = new ArrayList<Verifier>();
@@ -360,9 +361,9 @@ public class Decryptor {
      * Builds a {@link Verifier} for each specified signature
      * for which a verification key is available.
      */
-    protected List<Verifier> buildVerifiers(Iterator signatures)
+    protected List<Verifier> buildVerifiers(Iterator<?> signatures)
     throws PGPException {
-        ArrayList<Verifier> verifiers = new ArrayList<Verifier>();
+        List<Verifier> verifiers = new ArrayList<Verifier>();
         while (signatures.hasNext()) {
             Verifier verifier = null;
 
@@ -394,7 +395,7 @@ public class Decryptor {
     /**
      * Decrypts the encrypted data as the returned input stream.
      */
-    protected InputStream decrypt(Iterator data)
+    protected InputStream decrypt(Iterator<?> data)
     throws IOException, PGPException {
         PGPPBEEncryptedData pbe = null;
 
@@ -536,7 +537,7 @@ public class Decryptor {
      * Separates stream into PGP packets.
      * @see PGPObjectFactory
      */
-    protected Iterator parse(InputStream stream)
+    protected Iterator<?> parse(InputStream stream)
     throws IOException, PGPException {
         return new BcPGPObjectFactory(stream).iterator();
     }

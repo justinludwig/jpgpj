@@ -25,14 +25,14 @@ public class Util {
     /**
      * True if the specified collection is null or empty.
      */
-    public static boolean isEmpty(Collection c) {
+    public static boolean isEmpty(Collection<?> c) {
         return c == null || c.isEmpty();
     }
 
     /**
      * True if the specified map is null or empty.
      */
-    public static boolean isEmpty(Map m) {
+    public static boolean isEmpty(Map<?, ?> m) {
         return m == null || m.isEmpty();
     }
 
@@ -64,7 +64,7 @@ public class Util {
      * and a minimum of 1.
      */
     public static int bestFileBufferSize(long fileSize, int maxFileBufferSize) {
-        return Math.max((int) Math.min(fileSize, (long) maxFileBufferSize), 1);
+        return Math.max((int) Math.min(fileSize, maxFileBufferSize), 1);
     }
 
 }

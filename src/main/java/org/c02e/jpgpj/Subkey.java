@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.regex.Pattern;
+
 import org.bouncycastle.bcpg.PublicKeyAlgorithmTags;
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPKeyFlags;
@@ -70,6 +71,7 @@ public class Subkey {
     protected boolean forDecryption;
     protected char[] passphraseChars;
     /** @deprecated Null unless explicitly set by user. */
+    @Deprecated
     protected String passphrase;
     protected PGPPublicKey publicKey;
     protected PGPSecretKey secretKey;
@@ -85,6 +87,7 @@ public class Subkey {
      * Display string for the subkey, including its usage flags,
      * short ID, and user IDs.
      */
+    @Override
     public String toString() {
         if (publicKey == null) return "nul";
 
@@ -360,6 +363,7 @@ public class Subkey {
         int flags = 0;
         // actually only need POSITIVE_CERTIFICATION (for master key)
         // and SUBKEY_BINDING (for subkeys)
+        @SuppressWarnings("unchecked")
         Iterator<PGPSignature> signatures = publicKey.getSignatures();
         while (signatures.hasNext()) {
             PGPSignature signature = signatures.next();

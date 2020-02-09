@@ -4,14 +4,15 @@ import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.InputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.regex.Pattern;
+
 import org.bouncycastle.bcpg.ArmoredInputStream;
 import org.bouncycastle.gpg.keybox.PublicKeyRingBlob;
 import org.bouncycastle.gpg.keybox.bc.BcKeyBox;
@@ -92,6 +93,7 @@ public class Ring {
      * Display string for this ring, including listing each key on the ring,
      * with each subkey's usage flags, short ID, and user IDs.
      */
+    @Override
     public String toString() {
         if (Util.isEmpty(keys)) return "ring empty";
 
@@ -162,6 +164,7 @@ public class Ring {
      * in case the same key had been included multiple times
      * with different settings on the same ring).
      */
+    @Deprecated
     public Key findById(Long id) {
         for (Key key : keys)
             if (key.findById(id) != null)
@@ -265,9 +268,9 @@ public class Ring {
      * and adds them to this ring's existing list of keys.
      */
     public List<Key> load(InputStream stream) throws IOException, PGPException {
-        ArrayList<Key> keys = new ArrayList<Key>();
+        List<Key> keys = new ArrayList<Key>();
 
-        Iterator packets = parse(stream);
+        Iterator<?> packets = parse(stream);
         while (packets.hasNext()) {
             Object packet = packets.next();
 
@@ -288,7 +291,7 @@ public class Ring {
      * Separates stream into PGP packets.
      * @see PGPObjectFactory
      */
-    protected Iterator parse(InputStream stream)
+    protected Iterator<?> parse(InputStream stream)
     throws IOException, PGPException {
         DetectionResult result = FileDetection.detectContainer(stream);
         switch (result.type) {
