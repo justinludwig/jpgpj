@@ -418,12 +418,24 @@ public class Encryptor {
             meta = new FileMetadata();
         }
 
-        try (OutputStream targetStream = prepareCiphertextOutputStream(ciphertext, meta)) {
+        try (OutputStream targetStream = prepareCiphertextOutputStream(ciphertext, meta, false)) {
             // copy plaintext bytes into encryption pipeline
             copy(plaintext, targetStream, null /* signer is inside the target */, meta);
         }
     }
 
+    /**
+     * Builds a wrapper {@link OutputStrean} where everything written to the it is
+     * encrypted+compressed+signed according to the encryptor's configuration,
+     * and then written to the specified target file. Closing the wrapper stream finalizes
+     * the encryption and signature, and finishes writing all the wrapper stream's
+     * content to the original stream as well as closing the file stream.
+     *
+     * @param ciphertext The target {@link File} for the encrypted data
+     * @return The wrapper stream
+     * @throws IOException If failed to wrap the stream
+     * @throws PGPException If failed to apply a PGP wrapper
+     */
     public OutputStream prepareCiphertextOutputStream(File ciphertext)
             throws IOException, PGPException {
         // delete old output file
@@ -435,7 +447,7 @@ public class Encryptor {
         OutputStream fileStream = null;
         try {
             fileStream = new FileOutputStream(ciphertext);
-            OutputStream wrapper = prepareCiphertextOutputStream(fileStream, meta);
+            OutputStream wrapper = prepareCiphertextOutputStream(fileStream, meta, true);
             fileStream = null;  // avoid auto-close at finally clause
             return wrapper;
         } catch(Exception e) {
@@ -452,21 +464,29 @@ public class Encryptor {
     }
 
     /**
-     * Prepares an {@link OutputStream} - so that everything written to it
-     * is encrypted+compressed+signed - according to the encryptor's configuration
+     * Builds a new wrapper {@link OutputStream} to wrap the original specified
+     * {@link OutputStream}, where everything written to the it is automatically
+     * encrypted+compressed+signed according to the encryptor's configuration,
+     * and then written to the original stream. Closing the wrapper stream finalizes
+     * the encryption and signature, and finishes writing all the wrapper stream's
+     * content to the original stream. The original stream will be closed if
+     * <tt>closeOriginal</tt> parameter is {@code true} - otherwise, it is the
+     * <U>caller's</U> responsibility to close it after having closed the wrapper.
      *
      * @param ciphertext The original {@link OutputStream} into which the
      * encryption results are to be written. <B>Note:</B> the stream will
      * not be closed when the returned wrapper is closed
-     * @param meta The {@link FileMetadata} - if {@code null} an ad-hoc
-     * empty instance is used
+     * @param meta The original plaintext file's {@link FileMetadata} if
+     * available - if {@code null} an ad-hoc empty instance is used.
+     * @param closeOriginal Whether to also close the original wrapped stream
+     * when the wrapper is closed.
      * @return A wrapper stream - <B>Note:</B> actual encryption and signature
      * is finalized when it is closed.
      * @throws IOException If failed to wrap the stream
-     * @throws PGPException If failed to apply a PGP wraper
+     * @throws PGPException If failed to apply a PGP wrapper
      */
     public OutputStream prepareCiphertextOutputStream(
-            OutputStream ciphertext, FileMetadata meta)
+            OutputStream ciphertext, FileMetadata meta, boolean closeOriginal)
                 throws IOException, PGPException {
         if (meta == null)
             meta = new FileMetadata();
@@ -482,7 +502,7 @@ public class Encryptor {
         SigningOutputStream signingstream = sign(ciphertext, meta);
         ciphertext = pipeline(signingstream, stack);
         ciphertext = pipeline(packet(ciphertext, meta), stack);
-        return new EncryptorWrapperStream(ciphertext, signingstream, stack);
+        return new EncryptorWrapperStream(ciphertext, signingstream, stack, closeOriginal);
     }
 
     protected static class EncryptorWrapperStream extends FilterOutputStream {
@@ -490,12 +510,16 @@ public class Encryptor {
         protected final SigningOutputStream signingstream;
         protected final List<? extends OutputStream> stack;
         protected final byte[] oneByte = { 0 };
+        protected final boolean closeInitialStream;
+
         protected EncryptorWrapperStream(
-                OutputStream ciphertext, SigningOutputStream signer, List<? extends OutputStream> wrappers) {
+                OutputStream ciphertext, SigningOutputStream signer,
+                List<? extends OutputStream> wrappers, boolean closeOriginal) {
             super(ciphertext);
 
             signingstream = signer;
             stack = wrappers;
+            closeInitialStream = closeOriginal;
         }
 
         @Override
@@ -533,7 +557,8 @@ public class Encryptor {
         protected void finish() throws IOException {
             // close all output streams except original at end of process
             IOException err = null;
-            for (int i = stack.size() - 1; i > 0; i--) {
+            int minIndex = closeInitialStream ? 0 : 1;
+            for (int i = stack.size() - 1; i >= minIndex; i--) {
                 OutputStream outputStream = stack.get(i);
                 try {
                     outputStream.close();
