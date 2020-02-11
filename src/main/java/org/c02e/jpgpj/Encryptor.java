@@ -431,23 +431,24 @@ public class Encryptor {
      * the encryption and signature, and finishes writing all the wrapper stream's
      * content to the original stream as well as closing the file stream.
      *
+     * @param plainMeta The {@link FileMetadata} describing the plaintext file - if
+     * {@code null} an empty ad-hoc instance will be created
      * @param ciphertext The target {@link File} for the encrypted data
      * @return The wrapper stream
      * @throws IOException If failed to wrap the stream
      * @throws PGPException If failed to apply a PGP wrapper
      */
-    public OutputStream prepareCiphertextOutputStream(File ciphertext)
+    public OutputStream prepareCiphertextOutputStream(FileMetadata plainMeta, File ciphertext)
             throws IOException, PGPException {
         // delete old output file
         if (ciphertext.delete()) {
             log.debug("prepareCiphertextOutputStream - deleted {}", ciphertext);
         }
 
-        FileMetadata meta = new FileMetadata(ciphertext);
         OutputStream fileStream = null;
         try {
             fileStream = new FileOutputStream(ciphertext);
-            OutputStream wrapper = prepareCiphertextOutputStream(fileStream, meta, true);
+            OutputStream wrapper = prepareCiphertextOutputStream(fileStream, plainMeta, true);
             fileStream = null;  // avoid auto-close at finally clause
             return wrapper;
         } catch(Exception e) {

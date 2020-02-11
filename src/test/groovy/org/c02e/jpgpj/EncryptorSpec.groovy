@@ -284,6 +284,42 @@ hQEMAyne546XDHBhAQ...
         meta.verified
     }
 
+    def "use encryption file stream wrapper"() {
+        when:
+        def encryptor = new Encryptor(new Key(file('test-key-1.asc'), 'c02e'))
+        def plainFile = getTestFile(plainText), cipherFile = testFile
+        def wrapperStream = encryptor.prepareCiphertextOutputStream(new FileMetadata(plainFile), cipherFile)
+        try {
+            def plainStream = new FileInputStream(plainFile)
+            try {
+                byte[] buf = new byte[0x1000]
+                int numRead = plainStream.read(buf)
+                while (numRead != -1) {
+                    wrapperStream.write(buf, 0, numRead)
+                    numRead = plainStream.read(buf)
+                }
+            } finally {
+                plainStream.close()
+            }
+        } finally {
+            wrapperStream.close()
+        }
+
+        def decryptor = new Decryptor(new Key(file('test-key-1.asc'), 'c02e'))
+        def resultFile = testFile
+        def meta = decryptor.decrypt(cipherFile, resultFile)
+
+        then:
+        resultFile.text == plainText
+
+        meta.name == plainFile.name
+        meta.length == plainText.length()
+        // milliseconds are not preserved
+        (meta.lastModified / 1000L) == (long) (plainFile.lastModified() / 1000L)
+        meta.format == FileMetadata.Format.BINARY
+
+        meta.verified
+    }
     def "encrypt and sign zero-byte file"() {
         when:
         def encryptor = new Encryptor(new Key(file('test-key-1.asc'), 'c02e'))
