@@ -295,8 +295,9 @@ public class Decryptor {
 
     /**
      * Decrypts the specified PGP message into the specified output stream,
-     * and (if {@link #isVerificationRequired}) verifies the message
-     * signatures. Does not close or flush the streams.
+     * including the armored headers (if stream was armored and contained
+     * any such headers). If {@link #isVerificationRequired} also verifies
+     * the message signatures. <B>Note:</B> does not close or flush the streams.
      *
      * @param ciphertext PGP message, in binary or ASCII Armor format.
      * @param plaintext Decrypted content target {@link OutputStream}

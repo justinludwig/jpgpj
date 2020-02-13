@@ -13,11 +13,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.NavigableMap;
 import java.util.Objects;
-import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.bouncycastle.bcpg.ArmoredOutputStream;
@@ -79,7 +78,8 @@ public class Encryptor {
 
     protected boolean asciiArmored;
     protected boolean removeDefaultArmoredVersionHeader;
-    protected final NavigableMap<String, String> armoredHeaders = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+    protected final Map<String, String> armoredHeaders = new HashMap<>();
+    protected EncryptedAsciiArmorHeadersCallback armorHeadersCallback;
 
     protected int compressionLevel;
     protected CompressionAlgorithm compressionAlgorithm;
@@ -132,11 +132,36 @@ public class Encryptor {
     }
 
     /**
+     * @return The last set {@link EncryptedAsciiArmorHeadersCallback}
+     * @see #setArmorHeadersCallback(EncryptedAsciiArmorHeadersCallback)
+     */
+    public EncryptedAsciiArmorHeadersCallback getArmorHeadersCallback() {
+        return armorHeadersCallback;
+    }
+
+    /**
+     * Allows users to provide a callback that will be invoked for each
+     * encrypted <U>armored</U> output in order to allow them to set specified
+     * headers besides the global ones set by the encryptor. <B>Note:</B>
+     * affects the output only if {@link #isAsciiArmored() armored} setting is used.
+     *
+     * @param armorHeadersCallback The callback to invoke - {@code null} if none
+     * @see #isAsciiArmored()
+     * @see #isRemoveDefaultArmoredVersionHeader()
+     * @see #setArmoredHeaders(Map) setArmoredHeaders
+     * @see #addArmoredHeaders(Map) addArmoredHeaders
+     * @see #updateArmoredHeader(String, String) updateArmoredHeader
+     */
+    public void setArmorHeadersCallback(EncryptedAsciiArmorHeadersCallback armorHeadersCallback) {
+        this.armorHeadersCallback = armorHeadersCallback;
+    }
+
+    /**
      * By default the {@link ArmoredOutputStream} adds a &quot;Version&quot;
      * header - this setting allows users to remove this header (and perhaps
      * replace it and/or add others - see headers manipulation methods).
      *
-     * @return {@code true} if &quot;Version&quot; should be removed - default={@code false)
+     * @return {@code true} if &quot;Version&quot; should be removed - default={@code false}
      */
     public boolean isRemoveDefaultArmoredVersionHeader() {
         return removeDefaultArmoredVersionHeader;
@@ -145,10 +170,11 @@ public class Encryptor {
     /**
      * By default the {@link ArmoredOutputStream} adds a &quot;Version&quot;
      * header - this setting allows users to remove this header (and perhaps
-     * replace it and/or add others - see headers manipulation methods).
+     * replace it and/or add others - see headers manipulation methods). <B>Note:</B>
+     * affects the output only if {@link #isAsciiArmored() armored} setting is used.
      *
      * @param removeDefaultarmoredVersionHeader {@code true} if &quot;Version&quot;
-     * should be removed - default={@code false). <B>Note:</B> relevant only if
+     * should be removed - default={@code false}. <B>Note:</B> relevant only if
      * {@link #setAsciiArmored(boolean) armored} setting was also set.
      */
     public void setRemoveDefaultArmoredVersionHeader(boolean removeDefaultArmoredVersionHeader) {
@@ -158,7 +184,7 @@ public class Encryptor {
     /**
      * Retrieves the value for the specified armored header.
      *
-     * @param name Case <U>insensitive</U> name of header to get
+     * @param name Case <U>sensitive</U> name of header to get
      * @return The header value - {@code null} if header not set
      * @throws NullPointerException If no header name provided
      */
@@ -168,16 +194,16 @@ public class Encryptor {
     }
 
     /**
-     * @return An <U>unmodifiable</U> {@link NavigableMap} of
+     * @return An <U>unmodifiable</U> {@link Map} of
      * the current armored headers - <B>Note:</B> header name
-     * access is case <U>insensitive</U>
+     * access is case <U>sensitive</U>
      */
-    public NavigableMap<String, String> getArmoredHeaders() {
+    public Map<String, String> getArmoredHeaders() {
         if (armoredHeaders.isEmpty()) {
-            return Collections.emptyNavigableMap();
+            return Collections.emptyMap();
         }
 
-        return Collections.unmodifiableNavigableMap(armoredHeaders);
+        return Collections.unmodifiableMap(armoredHeaders);
     }
 
     /**
@@ -186,7 +212,7 @@ public class Encryptor {
      *
      * @param headers The new headers to set - may be {@code null}/empty. <B>Note:</B>
      * <UL>
-     *      <LI>Header names are case <U>insensitive</U></LI>
+     *      <LI>Header names are case <U>sensitive</U></LI>
      *
      *      <LI>
      *      In order to clear all headers need to also use
@@ -205,7 +231,7 @@ public class Encryptor {
      * setting is used.
      *
      * @param headers The headers to add - may be {@code null}/empty. <B>Note:</B>
-     * header names are case <U>insensitive</U>.
+     * header names are case <U>sensitive</U>.
      */
     public void addArmoredHeaders(Map<String, String> headers) {
         if (headers != null) {
@@ -217,7 +243,7 @@ public class Encryptor {
      * Sets the specified header value - replaces it if already set. <B>Note:</B>
      * affects the output only if {@link #isAsciiArmored() armored} setting is used.
      *
-     * @param name Case <U>insensitive</U> name of header to set. <B>Note:</B> this
+     * @param name Case <U>sensitive</U> name of header to set. <B>Note:</B> this
      * method can be used to <U>override</U> the default version header value.
      * @param value Value to set - if {@code null} then equivalent to
      * {@link #removeArmoredHeader(String) header removal}
@@ -238,7 +264,7 @@ public class Encryptor {
      * Removes the specified armored header <B>Note:</B> affects the output only
      * if {@link #isAsciiArmored() armored} setting is used.
      *
-     * @param name Case <U>insensitive</U> name of header to remove - <B>Note:</B>
+     * @param name Case <U>sensitive</U> name of header to remove - <B>Note:</B>
      * in order to remove the version header must use {@link #setRemoveDefaultArmoredVersionHeader(boolean)}.
      * @return The removed value - {@code null} if header was not set
      * @throws NullPointerException If no header name provided
@@ -621,7 +647,7 @@ public class Encryptor {
         stack.add(ciphertext);
 
         // setup encryption pipeline
-        ciphertext = pipeline(armor(ciphertext), stack);
+        ciphertext = pipeline(armor(ciphertext, meta), stack);
         ciphertext = pipeline(encrypt(ciphertext, meta), stack);
         ciphertext = pipeline(compress(ciphertext, meta), stack);
         SigningOutputStream signingstream = sign(ciphertext, meta);
@@ -713,9 +739,11 @@ public class Encryptor {
     }
 
     /**
-     * Wraps with stream that outputs ASCII-armored text - including configuring its
-     * armor headers.
+     * Wraps with stream that outputs ASCII-armored text - including configuring
+     * its armor headers.
      *
+     * @param meta The input plaintext {@link FileMetadata} - might be empty
+     * (but not {@code null}).
      * @param out The {@link OutputStream} to wrap
      * @return The wrapped output stream - {@code null} if no wrapping.
      * @see #isAsciiArmored()
@@ -723,8 +751,9 @@ public class Encryptor {
      * @see #setArmoredHeaders(Map) setArmoredHeaders
      * @see #addArmoredHeaders(Map) addArmoredHeaders
      * @see #updateArmoredHeader(String, String) updateArmoredHeader
+     * @see #setArmorHeadersCallback(EncryptedAsciiArmorHeadersCallback)
      */
-    protected OutputStream armor(OutputStream out) {
+    protected OutputStream armor(OutputStream out, FileMetadata meta) {
         if (!isAsciiArmored()) {
             return null;
         }
@@ -734,7 +763,17 @@ public class Encryptor {
             aos.setHeader(ArmoredOutputStream.VERSION_HDR, null);
         }
 
+        // add the global headers - if any
         armoredHeaders.forEach((name, value) -> aos.setHeader(name, value));
+
+        // see if user wants to manipulate the headers
+        EncryptedAsciiArmorHeadersCallback callback = getArmorHeadersCallback();
+        if (callback != null) {
+            EncryptedAsciiArmorHeadersManipulator manipulator =
+                EncryptedAsciiArmorHeadersManipulator.wrap(aos);
+            callback.prepareAsciiArmoredHeaders(this, meta, manipulator);
+        }
+
         return aos;
     }
 

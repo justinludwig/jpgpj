@@ -53,6 +53,4 @@ public class DecryptionResult {
             + ", numArmorHeaders=" + getArmorHeaders().size()
             + "]";
     }
-
-
 }

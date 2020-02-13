@@ -292,19 +292,30 @@ hQEMAyne546XDHBhAQ...
             encryptor.ring.keys*.passphrase = 'c02e'
             encryptor.updateArmoredHeader("Version", "3.14")
             encryptor.updateArmoredHeader("Encryptor", "c02e")
+            encryptor.armorHeadersCallback = new EncryptedAsciiArmorHeadersCallback() {
+                @Override
+                public void prepareAsciiArmoredHeaders(
+                        Encryptor enc, FileMetadata meta, EncryptedAsciiArmorHeadersManipulator manipulator) {
+                    manipulator.setHeader("Version", "2.71")    // override
+                    manipulator.setHeader("Callback", "true")   // add new
+                }
+            }
             encryptor.encrypt plainIn, cipherOut
             
             def decryptor = new Decryptor(new Ring(stream('test-key-1.asc')))
             decryptor.ring.keys*.passphrase = 'c02e'
             def result = decryptor.decryptWithFullDetails cipherIn, plainOut
-            def armorHeaders = result.armorHeaders
-
+            // result headers list is unmodifiable and we want to sort it
+            def armorHeaders = new ArrayList<>(result.armorHeaders)
+            armorHeaders.sort(Comparator.naturalOrder())
+            
         then:
             result.asciiArmored == true
-            armorHeaders.size() == 2
-            armorHeaders[0].equals("Version: 3.14")
-            armorHeaders[1].equals("Encryptor: c02e")
-
+            armorHeaders.size() == 3
+            armorHeaders[0].equals("Callback: true")    // added by callback
+            armorHeaders[1].equals("Encryptor: c02e")   // global setting in encryptor
+            armorHeaders[2].equals("Version: 2.71")     // overwritten by the callback
+            
             plainOut.toString() == plainText
     }
     
