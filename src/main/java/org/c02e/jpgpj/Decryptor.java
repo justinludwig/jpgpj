@@ -553,7 +553,7 @@ public class Decryptor {
 
     /**
      * Wraps stream with ArmoredInputStream if necessary
-     * (to convert ascii-armored content back into binary data).
+     * (to convert ASCII-armored content back into binary data).
      */
     protected InputStream unarmor(InputStream stream)
             throws IOException, PGPException {

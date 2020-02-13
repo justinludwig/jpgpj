@@ -274,17 +274,40 @@ hQEMAyne546XDHBhAQ...
             encryptor.removeDefaultArmoredVersionHeader = true
             encryptor.ring.keys*.passphrase = 'c02e'
             encryptor.encrypt plainIn, cipherOut
-        def decryptor = new Decryptor(new Ring(stream('test-key-1.asc')))
-        decryptor.ring.keys*.passphrase = 'c02e'
-        def result = decryptor.decryptWithFullDetails cipherIn, plainOut
-        def armorHeaders = result.armorHeaders
+            def decryptor = new Decryptor(new Ring(stream('test-key-1.asc')))
+            decryptor.ring.keys*.passphrase = 'c02e'
+            def result = decryptor.decryptWithFullDetails cipherIn, plainOut
+            def armorHeaders = result.armorHeaders
 
         then:
-        result.asciiArmored == true
-        armorHeaders.size() == 0
-        plainOut.toString() == plainText
+            result.asciiArmored == true
+            armorHeaders.size() == 0
+            plainOut.toString() == plainText
     }
 
+    def "encrypt and use user defined ascii armor headers"() {
+        when:
+            def encryptor = new Encryptor(new Ring(stream('test-key-1.asc')))
+            encryptor.asciiArmored = true
+            encryptor.ring.keys*.passphrase = 'c02e'
+            encryptor.updateArmoredHeader("Version", "3.14")
+            encryptor.updateArmoredHeader("Encryptor", "c02e")
+            encryptor.encrypt plainIn, cipherOut
+            
+            def decryptor = new Decryptor(new Ring(stream('test-key-1.asc')))
+            decryptor.ring.keys*.passphrase = 'c02e'
+            def result = decryptor.decryptWithFullDetails cipherIn, plainOut
+            def armorHeaders = result.armorHeaders
+
+        then:
+            result.asciiArmored == true
+            armorHeaders.size() == 2
+            armorHeaders[0].equals("Version: 3.14")
+            armorHeaders[1].equals("Encryptor: c02e")
+
+            plainOut.toString() == plainText
+    }
+    
     def "encrypt and sign file"() {
         when:
         def encryptor = new Encryptor(new Key(file('test-key-1.asc'), 'c02e'))

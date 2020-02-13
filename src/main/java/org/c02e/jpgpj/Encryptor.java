@@ -11,8 +11,13 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
+import java.util.NavigableMap;
+import java.util.Objects;
+import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.bouncycastle.bcpg.ArmoredOutputStream;
@@ -74,8 +79,9 @@ public class Encryptor {
 
     protected boolean asciiArmored;
     protected boolean removeDefaultArmoredVersionHeader;
-    protected int compressionLevel;
+    protected final NavigableMap<String, String> armoredHeaders = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
 
+    protected int compressionLevel;
     protected CompressionAlgorithm compressionAlgorithm;
     protected EncryptionAlgorithm encryptionAlgorithm;
     protected HashingAlgorithm signingAlgorithm;
@@ -123,6 +129,123 @@ public class Encryptor {
     /** True to encode final output with ASCII Armor.  Defaults to false. */
     public void setAsciiArmored(boolean x) {
         asciiArmored = x;
+    }
+
+    /**
+     * By default the {@link ArmoredOutputStream} adds a &quot;Version&quot;
+     * header - this setting allows users to remove this header (and perhaps
+     * replace it and/or add others - see headers manipulation methods).
+     *
+     * @return {@code true} if &quot;Version&quot; should be removed - default={@code false)
+     */
+    public boolean isRemoveDefaultArmoredVersionHeader() {
+        return removeDefaultArmoredVersionHeader;
+    }
+
+    /**
+     * By default the {@link ArmoredOutputStream} adds a &quot;Version&quot;
+     * header - this setting allows users to remove this header (and perhaps
+     * replace it and/or add others - see headers manipulation methods).
+     *
+     * @param removeDefaultarmoredVersionHeader {@code true} if &quot;Version&quot;
+     * should be removed - default={@code false). <B>Note:</B> relevant only if
+     * {@link #setAsciiArmored(boolean) armored} setting was also set.
+     */
+    public void setRemoveDefaultArmoredVersionHeader(boolean removeDefaultArmoredVersionHeader) {
+        this.removeDefaultArmoredVersionHeader = removeDefaultArmoredVersionHeader;
+    }
+
+    /**
+     * Retrieves the value for the specified armored header.
+     *
+     * @param name Case <U>insensitive</U> name of header to get
+     * @return The header value - {@code null} if header not set
+     * @throws NullPointerException If no header name provided
+     */
+    public String getArmoredHeader(String name) {
+        Objects.requireNonNull(name, "No header name provided");
+        return armoredHeaders.get(name);
+    }
+
+    /**
+     * @return An <U>unmodifiable</U> {@link NavigableMap} of
+     * the current armored headers - <B>Note:</B> header name
+     * access is case <U>insensitive</U>
+     */
+    public NavigableMap<String, String> getArmoredHeaders() {
+        if (armoredHeaders.isEmpty()) {
+            return Collections.emptyNavigableMap();
+        }
+
+        return Collections.unmodifiableNavigableMap(armoredHeaders);
+    }
+
+    /**
+     * Replaces the current armored headers with the provided ones. <B>Note:</B>
+     * affects the output only if {@link #isAsciiArmored() armored} setting is used.
+     *
+     * @param headers The new headers to set - may be {@code null}/empty. <B>Note:</B>
+     * <UL>
+     *      <LI>Header names are case <U>insensitive</U></LI>
+     *
+     *      <LI>
+     *      In order to clear all headers need to also use
+     *      {@link #setRemoveDefaultArmoredVersionHeader(boolean)}.
+     *      </LI>
+     * </UL>
+     */
+    public void setArmoredHeaders(Map<String, String> headers) {
+        armoredHeaders.clear();
+        addArmoredHeaders(headers);
+    }
+
+    /**
+     * Adds the specified headers - replaces existing ones and adds the new ones.
+     * <B>Note:</B> affects the output only if {@link #isAsciiArmored() armored}
+     * setting is used.
+     *
+     * @param headers The headers to add - may be {@code null}/empty. <B>Note:</B>
+     * header names are case <U>insensitive</U>.
+     */
+    public void addArmoredHeaders(Map<String, String> headers) {
+        if (headers != null) {
+            armoredHeaders.putAll(headers);
+        }
+    }
+
+    /**
+     * Sets the specified header value - replaces it if already set. <B>Note:</B>
+     * affects the output only if {@link #isAsciiArmored() armored} setting is used.
+     *
+     * @param name Case <U>insensitive</U> name of header to set. <B>Note:</B> this
+     * method can be used to <U>override</U> the default version header value.
+     * @param value Value to set - if {@code null} then equivalent to
+     * {@link #removeArmoredHeader(String) header removal}
+     * @return The replaced value - {@code null} if no previous value set
+     * @throws NullPointerException If no header name provided
+     * @see #setRemoveDefaultArmoredVersionHeader(boolean)
+     */
+    public String updateArmoredHeader(String name, String value) {
+        if (value == null) {
+            return removeArmoredHeader(name);
+        }
+
+        Objects.requireNonNull(name, "No header name provided");
+        return armoredHeaders.put(name, value);
+    }
+
+    /**
+     * Removes the specified armored header <B>Note:</B> affects the output only
+     * if {@link #isAsciiArmored() armored} setting is used.
+     *
+     * @param name Case <U>insensitive</U> name of header to remove - <B>Note:</B>
+     * in order to remove the version header must use {@link #setRemoveDefaultArmoredVersionHeader(boolean)}.
+     * @return The removed value - {@code null} if header was not set
+     * @throws NullPointerException If no header name provided
+     */
+    public String removeArmoredHeader(String name) {
+        Objects.requireNonNull(name, "No header name provided");
+        return armoredHeaders.remove(name);
     }
 
     /**
@@ -241,7 +364,7 @@ public class Encryptor {
     }
 
     /**
-     * Key-deriviation (aka s2k digest) algorithm to use
+     * Key-derivation (aka s2k digest) algorithm to use
      * (used to convert the symmetric passphrase into an encryption key).
      * Defaults to {@link HashingAlgorithm#SHA512}.
      */
@@ -250,7 +373,7 @@ public class Encryptor {
     }
 
     /**
-     * Key-deriviation (aka s2k digest) algorithm to use
+     * Key-derivation (aka s2k digest) algorithm to use
      * (used to convert the symmetric passphrase into an encryption key).
      * Defaults to {@link HashingAlgorithm#SHA512}.
      */
@@ -259,7 +382,7 @@ public class Encryptor {
     }
 
     /**
-     * Key-deriviation work factor (aka s2k count) to use, from 0 to 255
+     * Key-derivation work factor (aka s2k count) to use, from 0 to 255
      * (where 1 = 1088 iterations, and 255 = 65,011,712 iterations).
      * Defaults to 255.
      */
@@ -268,7 +391,7 @@ public class Encryptor {
     }
 
     /**
-     * Key-deriviation work factor (aka s2k count) to use, from 0 to 255
+     * Key-derivation work factor (aka s2k count) to use, from 0 to 255
      * (where 1 = 1088 iterations, and 255 = 65,011,712 iterations).
      * Defaults to 255.
      */
@@ -296,30 +419,6 @@ public class Encryptor {
     /** Keys to use for encryption and signing. */
     protected void setRing(Ring x) {
         ring = x != null ? x : new Ring();
-    }
-
-    /**
-     * By default the {@link ArmoredOutputStream} adds a &quot;Version&quot;
-     * header - this setting allows users to remove this header (and perhaps
-     * replace it and/or add others - see headers manipulation methods).
-     *
-     * @return {@code true} if &quot;Version&quot; should be removed - default={@code false)
-     */
-    public boolean isRemoveDefaultArmoredVersionHeader() {
-        return removeDefaultArmoredVersionHeader;
-    }
-
-    /**
-     * By default the {@link ArmoredOutputStream} adds a &quot;Version&quot;
-     * header - this setting allows users to remove this header (and perhaps
-     * replace it and/or add others - see headers manipulation methods).
-     *
-     * @param removeDefaultarmoredVersionHeader {@code true} if &quot;Version&quot;
-     * should be removed - default={@code false). <B>Note:</B> relevant only if
-     * {@link #setAsciiArmored(boolean) armored} setting was also set.
-     */
-    public void setRemoveDefaultArmoredVersionHeader(boolean removeDefaultArmoredVersionHeader) {
-        this.removeDefaultArmoredVersionHeader = removeDefaultArmoredVersionHeader;
     }
 
     /**
@@ -614,18 +713,29 @@ public class Encryptor {
     }
 
     /**
-     * Wraps with stream that outputs ascii-armored text.
+     * Wraps with stream that outputs ASCII-armored text - including configuring its
+     * armor headers.
+     *
+     * @param out The {@link OutputStream} to wrap
+     * @return The wrapped output stream - {@code null} if no wrapping.
+     * @see #isAsciiArmored()
+     * @see #isRemoveDefaultArmoredVersionHeader()
+     * @see #setArmoredHeaders(Map) setArmoredHeaders
+     * @see #addArmoredHeaders(Map) addArmoredHeaders
+     * @see #updateArmoredHeader(String, String) updateArmoredHeader
      */
     protected OutputStream armor(OutputStream out) {
-        if (isAsciiArmored()) {
-            ArmoredOutputStream aos = new ArmoredOutputStream(out);
-            if (isRemoveDefaultArmoredVersionHeader()) {
-                aos.setHeader(ArmoredOutputStream.VERSION_HDR, null);
-            }
-            return aos;
+        if (!isAsciiArmored()) {
+            return null;
         }
 
-        return null;
+        ArmoredOutputStream aos = new ArmoredOutputStream(out);
+        if (isRemoveDefaultArmoredVersionHeader()) {
+            aos.setHeader(ArmoredOutputStream.VERSION_HDR, null);
+        }
+
+        armoredHeaders.forEach((name, value) -> aos.setHeader(name, value));
+        return aos;
     }
 
     /**

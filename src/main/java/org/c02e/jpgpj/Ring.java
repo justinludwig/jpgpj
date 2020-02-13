@@ -36,7 +36,7 @@ import org.c02e.jpgpj.util.Util;
  * {@link #load(File)} method, or by loading them from an input stream via the
  * {@link #load(InputStream)} method. A ring can also be constructed from
  * an existing array of keys ({@link #Ring(Key...)}), or from an existing list
- * of keys ({@link #Ring(List)}), or from an ascii-armor text string containing
+ * of keys ({@link #Ring(List)}), or from an ASCII-armor text string containing
  * the keys ({@link #Ring(String)}), or from a file containing the keys
  * ({@link #Ring(File)}), or from an input stream containing the keys
  * ({@link #Ring(InputStream)}).
