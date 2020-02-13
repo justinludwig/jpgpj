@@ -73,6 +73,7 @@ public class Encryptor {
     public static final int MAX_ENCRYPT_COPY_BUFFER_SIZE = 0x10000;
 
     protected boolean asciiArmored;
+    protected boolean removeDefaultArmoredVersionHeader;
     protected int compressionLevel;
 
     protected CompressionAlgorithm compressionAlgorithm;
@@ -295,6 +296,30 @@ public class Encryptor {
     /** Keys to use for encryption and signing. */
     protected void setRing(Ring x) {
         ring = x != null ? x : new Ring();
+    }
+
+    /**
+     * By default the {@link ArmoredOutputStream} adds a &quot;Version&quot;
+     * header - this setting allows users to remove this header (and perhaps
+     * replace it and/or add others - see headers manipulation methods).
+     *
+     * @return {@code true} if &quot;Version&quot; should be removed - default={@code false)
+     */
+    public boolean isRemoveDefaultArmoredVersionHeader() {
+        return removeDefaultArmoredVersionHeader;
+    }
+
+    /**
+     * By default the {@link ArmoredOutputStream} adds a &quot;Version&quot;
+     * header - this setting allows users to remove this header (and perhaps
+     * replace it and/or add others - see headers manipulation methods).
+     *
+     * @param removeDefaultarmoredVersionHeader {@code true} if &quot;Version&quot;
+     * should be removed - default={@code false). <B>Note:</B> relevant only if
+     * {@link #setAsciiArmored(boolean) armored} setting was also set.
+     */
+    public void setRemoveDefaultArmoredVersionHeader(boolean removeDefaultArmoredVersionHeader) {
+        this.removeDefaultArmoredVersionHeader = removeDefaultArmoredVersionHeader;
     }
 
     /**
@@ -592,8 +617,14 @@ public class Encryptor {
      * Wraps with stream that outputs ascii-armored text.
      */
     protected OutputStream armor(OutputStream out) {
-        if (asciiArmored)
-            return new ArmoredOutputStream(out);
+        if (isAsciiArmored()) {
+            ArmoredOutputStream aos = new ArmoredOutputStream(out);
+            if (isRemoveDefaultArmoredVersionHeader()) {
+                aos.setHeader(ArmoredOutputStream.VERSION_HDR, null);
+            }
+            return aos;
+        }
+
         return null;
     }
 

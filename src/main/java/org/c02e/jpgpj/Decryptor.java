@@ -302,7 +302,7 @@ public class Decryptor {
      * @param plaintext Decrypted content target {@link OutputStream}
      * @return The {@link DecryptionResult} containing all relevant
      * information that could be extracted from the encrypted data - including
-     * metadata, armoured headers (if any), etc...
+     * metadata, armored headers (if any), etc...
      * @throws IOException if an IO error occurs reading from or writing to
      * the underlying input or output streams.
      * @throws PGPException if the PGP message is not formatted correctly.

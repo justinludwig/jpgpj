@@ -246,9 +246,14 @@ class EncryptorSpec extends Specification {
 
         def decryptor = new Decryptor(new Ring(stream('test-key-1.asc')))
         decryptor.ring.keys*.passphrase = 'c02e'
-        decryptor.decrypt cipherIn, plainOut
+        def result = decryptor.decryptWithFullDetails cipherIn, plainOut
+        def armorHeaders = result.armorHeaders
 
         then:
+        result.asciiArmored == true
+        armorHeaders.size() == 1
+        armorHeaders[0].startsWith("Version")
+
         plainOut.toString() == plainText
         cipherOut.toString().
             replaceFirst(/(?m)^(hQEMAyne546XDHBhAQ)[\w\+\/\n]+[\w\+\/]={0,2}/, '$1...').
@@ -260,6 +265,24 @@ hQEMAyne546XDHBhAQ...
 =1234
 -----END PGP MESSAGE-----
         '''.trim() + '\n'
+    }
+
+    def "encrypt armored without version header"() {
+        when:
+            def encryptor = new Encryptor(new Ring(stream('test-key-1.asc')))
+            encryptor.asciiArmored = true
+            encryptor.removeDefaultArmoredVersionHeader = true
+            encryptor.ring.keys*.passphrase = 'c02e'
+            encryptor.encrypt plainIn, cipherOut
+        def decryptor = new Decryptor(new Ring(stream('test-key-1.asc')))
+        decryptor.ring.keys*.passphrase = 'c02e'
+        def result = decryptor.decryptWithFullDetails cipherIn, plainOut
+        def armorHeaders = result.armorHeaders
+
+        then:
+        result.asciiArmored == true
+        armorHeaders.size() == 0
+        plainOut.toString() == plainText
     }
 
     def "encrypt and sign file"() {

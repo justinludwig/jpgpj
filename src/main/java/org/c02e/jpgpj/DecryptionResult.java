@@ -10,16 +10,16 @@ import java.util.List;
  */
 public class DecryptionResult {
     private final FileMetadata fileMetadata;
-    private final boolean armoured;
-    private final List<String> armouredHeaders;
+    private final boolean armored;
+    private final List<String> armorHeaders;
 
     public DecryptionResult(
-            FileMetadata fileMetadata, boolean armoured, Collection<String> armouredHeaders) {
+            FileMetadata fileMetadata, boolean armored, Collection<String> armorHeaders) {
         this.fileMetadata = fileMetadata;
-        this.armoured = armoured;
-        this.armouredHeaders = ((armouredHeaders == null) || armouredHeaders.isEmpty())
+        this.armored = armored;
+        this.armorHeaders = ((armorHeaders == null) || armorHeaders.isEmpty())
             ? Collections.emptyList()
-            : Collections.unmodifiableList(new ArrayList<>(armouredHeaders));
+            : Collections.unmodifiableList(new ArrayList<>(armorHeaders));
     }
 
     /**
@@ -30,27 +30,27 @@ public class DecryptionResult {
     }
 
     /**
-     * @return {@code true} if the encrypted data was armoured
+     * @return {@code true} if the encrypted data was armored
      */
-    public boolean isArmoured() {
-        return armoured;
+    public boolean isAsciiArmored() {
+        return armored;
     }
 
     /**
-     * @return An <U>unmodifiable</U> {@link List} of extracted armoured
-     * headers - is valid only if {@link #isArmoured()}. <B>Note:</B> might
-     * be empty if the encrypted data was armoured but contained no headers.
+     * @return An <U>unmodifiable</U> {@link List} of extracted armored
+     * headers - is valid only if {@link #isAsciiArmored() armored}. <B>Note:</B>
+     * might be empty if the encrypted data was armored but contained no headers.
      */
-    public List<String> getArmouredHeaders() {
-        return armouredHeaders;
+    public List<String> getArmorHeaders() {
+        return armorHeaders;
     }
 
     @Override
     public String toString() {
         return getClass().getSimpleName()
             + "[metadata=" + getFileMetadata()
-            + ", armoured=" + isArmoured()
-            + ", numArmouredHeaders=" + getArmouredHeaders().size()
+            + ", armored=" + isAsciiArmored()
+            + ", numArmorHeaders=" + getArmorHeaders().size()
             + "]";
     }
 
