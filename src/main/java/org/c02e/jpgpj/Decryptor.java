@@ -10,6 +10,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
@@ -78,7 +79,7 @@ public class Decryptor {
     protected String symmetricPassphrase;
     protected int maxFileBufferSize = 0x100000; //1MB
     protected Ring ring;
-    protected Logger log = LoggerFactory.getLogger(Decryptor.class.getName());
+    protected final Logger log = LoggerFactory.getLogger(Decryptor.class.getName());
 
 
     /** Constructs a decryptor with an empty key ring. */
@@ -226,7 +227,7 @@ public class Decryptor {
      * the message was not signed by any of the keys supplied for verification.
      */
     public FileMetadata decrypt(File ciphertext, File plaintext)
-    throws IOException, PGPException {
+            throws IOException, PGPException {
         if (ciphertext.equals(plaintext))
             throw new IOException("cannot decrypt " + ciphertext +
                 " over itself");
@@ -284,23 +285,62 @@ public class Decryptor {
      * of the keys supplied for decryption.
      * @throws VerificationException if {@link #isVerificationRequired} and
      * the message was not signed by any of the keys supplied for verification.
+     * @see #decryptWithFullDetails(InputStream, OutputStream) decryptWithFullDetails
      */
     public FileMetadata decrypt(InputStream ciphertext, OutputStream plaintext)
-    throws IOException, PGPException {
-        List<FileMetadata> meta = unpack(parse(unarmor(ciphertext)), plaintext);
+            throws IOException, PGPException {
+        DecryptionResult result = decryptWithFullDetails(ciphertext, plaintext);
+        return result.getFileMetadata();
+    }
+
+    /**
+     * Decrypts the specified PGP message into the specified output stream,
+     * and (if {@link #isVerificationRequired}) verifies the message
+     * signatures. Does not close or flush the streams.
+     *
+     * @param ciphertext PGP message, in binary or ASCII Armor format.
+     * @param plaintext Decrypted content target {@link OutputStream}
+     * @return The {@link DecryptionResult} containing all relevant
+     * information that could be extracted from the encrypted data - including
+     * metadata, armoured headers (if any), etc...
+     * @throws IOException if an IO error occurs reading from or writing to
+     * the underlying input or output streams.
+     * @throws PGPException if the PGP message is not formatted correctly.
+     * @throws PassphraseException if an incorrect passphrase was supplied
+     * for one of the decryption keys, or as the
+     * {@link #getSymmetricPassphrase()}.
+     * @throws DecryptionException if the message was not encrypted for any
+     * of the keys supplied for decryption.
+     * @throws VerificationException if {@link #isVerificationRequired} and
+     * the message was not signed by any of the keys supplied for verification.
+     */
+    public DecryptionResult decryptWithFullDetails(
+            InputStream ciphertext, OutputStream plaintext)
+                throws IOException, PGPException {
+        InputStream unarmoredStream = unarmor(ciphertext);
+        List<FileMetadata> meta = unpack(parse(unarmoredStream), plaintext);
         if (meta.size() > 1)
             throw new PGPException("content contained more than one file");
-        if (meta.size() < 1)
-            return new FileMetadata();
-        return meta.get(0);
-    }
+
+        FileMetadata metadata = (meta.size() < 1) ? new FileMetadata() : meta.get(0);
+        if (unarmoredStream instanceof ArmoredInputStream) {
+            ArmoredInputStream ais = (ArmoredInputStream) unarmoredStream;
+            String[] headers = ais.getArmorHeaders();
+            return new DecryptionResult(metadata, true,
+                ((headers == null) || (headers.length == 0))
+                ? Collections.emptyList()
+                : Arrays.asList(headers));
+        } else {
+            return new DecryptionResult(metadata, false, Collections.emptyList());
+        }
+     }
 
     /**
      * Recursively unpacks the pgp message packets,
      * writing the decrypted message content into the output stream.
      */
-    protected List<FileMetadata> unpack(Iterator<?> packets,
-    OutputStream plaintext) throws IOException, PGPException {
+    protected List<FileMetadata> unpack(Iterator<?> packets, OutputStream plaintext)
+            throws IOException, PGPException {
         List<FileMetadata> meta = new ArrayList<FileMetadata>();
         List<Verifier> verifiers = new ArrayList<Verifier>();
 
@@ -326,17 +366,14 @@ public class Decryptor {
                 // in already initialized verifiers
                 else
                     matchSignatures(list.iterator(), verifiers);
-
             } else if (packet instanceof PGPEncryptedDataList) {
                 PGPEncryptedDataList list = (PGPEncryptedDataList) packet;
                 // decrypt and unpack encrypted content
                 meta.addAll(unpack(parse(decrypt(list.iterator())), plaintext));
-
             } else if (packet instanceof PGPCompressedData) {
                 InputStream i = ((PGPCompressedData) packet).getDataStream();
                 // unpack compressed content
                 meta.addAll(unpack(parse(i), plaintext));
-
             } else if (packet instanceof PGPLiteralData) {
                 PGPLiteralData data = (PGPLiteralData) packet;
                 FileMetadata file = new FileMetadata(data);
@@ -345,7 +382,6 @@ public class Decryptor {
                 // while also passing input bytes into verifiers
                 file.setLength(copy(i, plaintext, verifiers));
                 meta.add(file);
-
             } else {
                 throw new PGPException("unexpected packet: " + packet.getClass());
             }
@@ -362,7 +398,7 @@ public class Decryptor {
      * for which a verification key is available.
      */
     protected List<Verifier> buildVerifiers(Iterator<?> signatures)
-    throws PGPException {
+            throws PGPException {
         List<Verifier> verifiers = new ArrayList<Verifier>();
         while (signatures.hasNext()) {
             Verifier verifier = null;
@@ -520,7 +556,7 @@ public class Decryptor {
      * (to convert ascii-armored content back into binary data).
      */
     protected InputStream unarmor(InputStream stream)
-    throws IOException, PGPException {
+            throws IOException, PGPException {
         DetectionResult result = FileDetection.detectContainer(stream,
             getMaxFileBufferSize());
         switch (result.type) {
