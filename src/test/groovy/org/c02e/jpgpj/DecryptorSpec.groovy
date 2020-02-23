@@ -191,11 +191,10 @@ pub v  BC3F6A4B
 
     def "decrypt symmetric without verification"() {
         when:
-        def decryptor = new Decryptor()
-        decryptor.verificationRequired = false
-        decryptor.symmetricPassphrase = 'c02e'
-        def meta = decryptor.decrypt(stream(
-            'test-encrypted-with-passphrase.txt.asc'), buf)
+        def meta = new Decryptor()
+            .withVerificationRequired(false)
+            .withSymmetricPassphrase('c02e')
+            .decrypt(stream('test-encrypted-with-passphrase.txt.asc'), buf)
         then:
         buf.toString() == 'test\n'
         meta.name == 'test.txt'
@@ -208,9 +207,9 @@ pub v  BC3F6A4B
     def "decrypt symmetric with wrong passphrase"() {
         when:
         def decryptor = new Decryptor()
-        decryptor.verificationRequired = false
-        decryptor.symmetricPassphrase = 'foo'
-        decryptor.decrypt stream('test-encrypted-with-passphrase.txt.asc'), buf
+            .withVerificationRequired(false)
+            .withSymmetricPassphrase('foo')
+            .decrypt(stream('test-encrypted-with-passphrase.txt.asc'), buf)
         then:
         def e = thrown(PassphraseException)
         e.message == 'incorrect passphrase for symmetric key'
@@ -219,8 +218,8 @@ pub v  BC3F6A4B
     def "decrypt symmetric without verification key"() {
         when:
         def decryptor = new Decryptor()
-        decryptor.symmetricPassphrase = 'c02e'
-        decryptor.decrypt stream('test-encrypted-with-passphrase.txt.asc'), buf
+            .withSymmetricPassphrase('c02e')
+            .decrypt stream('test-encrypted-with-passphrase.txt.asc'), buf
         then:
         def e = thrown(VerificationException)
         e.message == 'content not signed with a required key'
@@ -229,7 +228,7 @@ pub v  BC3F6A4B
     def "decrypt symmetric with verification"() {
         when:
         def decryptor = new Decryptor(new Ring(stream('test-ring-pub.asc')))
-        decryptor.symmetricPassphrase = 'c02e'
+            .withSymmetricPassphrase('c02e')
         def meta = decryptor.decrypt(stream(
             'test-encrypted-for-key-1-and-passphrase-signed-by-key-2.txt.asc'), buf)
         then:
@@ -269,7 +268,7 @@ pub v  BC3F6A4B
         when:
         def passphrase = 'c02e' as char[]
         def decryptor = new Decryptor(new Ring(stream('test-ring-pub.asc')))
-        decryptor.symmetricPassphraseChars = passphrase
+            .withSymmetricPassphraseChars(passphrase)
         def meta = decryptor.decrypt(stream(
             'test-encrypted-for-key-1-and-passphrase-signed-by-key-2.txt.asc'), buf)
         then:

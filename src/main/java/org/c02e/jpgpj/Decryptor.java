@@ -10,6 +10,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -72,12 +73,17 @@ import org.slf4j.LoggerFactory;
  * }</pre>
  */
 public class Decryptor {
-    protected boolean verificationRequired;
+    public static final int DEFAULT_MAX_FILE_BUFFER_SIZE = 0x100000; // 1MB
+    public static final boolean DEFAULT_VERIFICATION_REQUIRED = true;
+    public static final int DEFAULT_COPY_FILE_BUFFER_SIZE = 0x4000;
+
+    protected boolean verificationRequired = DEFAULT_VERIFICATION_REQUIRED;
     protected char[] symmetricPassphraseChars;
     /** @deprecated Null unless explicitly set by user. */
     @Deprecated
     protected String symmetricPassphrase;
-    protected int maxFileBufferSize = 0x100000; //1MB
+    protected int maxFileBufferSize = DEFAULT_MAX_FILE_BUFFER_SIZE; //1MB
+    protected int copyFileBufferSize = DEFAULT_COPY_FILE_BUFFER_SIZE;
     protected Ring ring;
     protected final Logger log = LoggerFactory.getLogger(Decryptor.class.getName());
 
@@ -89,7 +95,6 @@ public class Decryptor {
 
     /** Constructs a decryptor with the specified key ring. */
     public Decryptor(Ring ring) {
-        verificationRequired = true;
         setSymmetricPassphraseChars(null);
         setRing(ring);
     }
@@ -100,23 +105,30 @@ public class Decryptor {
     }
 
     /**
-     * True to require messages be signed with at least one key from ring.
-     * Defaults to true.
+     * @return {@code true} to require messages be signed with
+     * at least one key from ring. Defaults to true.
      */
     public boolean isVerificationRequired() {
         return verificationRequired;
     }
 
     /**
-     * True to require messages be signed with at least one key from ring.
-     * Defaults to true.
+     * @param x {@code true} to require messages be signed with at least
+     * one key from ring. Defaults to {@code true}.
+     * @see #DEFAULT_VERIFICATION_REQUIRED
      */
     public void setVerificationRequired(boolean x) {
         verificationRequired = x;
     }
 
+    /** @see #setVerificationRequired(boolean) */
+    public Decryptor withVerificationRequired(boolean x) {
+        setVerificationRequired(x);
+        return this;
+    }
+
     /**
-     * Passphrase to use to decrypt with a symmetric key; or empty char[].
+     * @return Passphrase to use to decrypt with a symmetric key; or empty char[].
      * Note that this char[] itself (and not a copy) will be cached and used
      * until {@link #clearSecrets} is called (or
      * {@link #setSymmetricPassphraseChars} is called again with a different
@@ -127,7 +139,7 @@ public class Decryptor {
     }
 
     /**
-     * Passphrase to use to decrypt with a symmetric key; or empty char[].
+     * @param x Passphrase to use to decrypt with a symmetric key; or empty char[].
      * Note that this char[] itself (and not a copy) will be cached and used
      * until {@link #clearSecrets} is called (or
      * {@link #setSymmetricPassphraseChars} is called again with a different
@@ -143,8 +155,14 @@ public class Decryptor {
         }
     }
 
+    /** @see #setSymmetricPassphraseChars(char[]) */
+    public Decryptor withSymmetricPassphraseChars(char[] x) {
+        setSymmetricPassphraseChars(x);
+        return this;
+    }
+
     /**
-     * Passphrase to use to decrypt with a symmetric key; or empty string.
+     * @return Passphrase to use to decrypt with a symmetric key; or empty string.
      * Prefer {@link #getSymmetricPassphraseChars} to avoid creating extra copies
      * of the passphrase in memory that cannot be cleaned up.
      * @see #getSymmetricPassphraseChars
@@ -156,7 +174,7 @@ public class Decryptor {
     }
 
     /**
-     * Passphrase to use to decrypt with a symmetric key; or empty string.
+     * @param x Passphrase to use to decrypt with a symmetric key; or empty string.
      * Prefer {@link #setSymmetricPassphraseChars} to avoid creating extra copies
      * of the passphrase in memory that cannot be cleaned up.
      * @see #setSymmetricPassphraseChars
@@ -166,6 +184,12 @@ public class Decryptor {
         symmetricPassphrase = x;
     }
 
+    /** @see #setSymmetricPassphrase(String) */
+    public Decryptor withSymmetricPassphrase(String x) {
+        setSymmetricPassphrase(x);
+        return this;
+    }
+
     public int getMaxFileBufferSize() {
         return maxFileBufferSize;
     }
@@ -173,19 +197,60 @@ public class Decryptor {
     /**
      * Decryptor will choose the most appropriate read/write buffer size
      * for each file. You can set the maximum value here. Defaults to 1MB.
+     *
+     * @param maxFileBufferSize The read/write buffer size
+     * @see #DEFAULT_MAX_FILE_BUFFER_SIZE
      */
     public void setMaxFileBufferSize(int maxFileBufferSize) {
         this.maxFileBufferSize = maxFileBufferSize;
     }
 
-    /** Keys to use for decryption and verification. */
+    /** @see #setMaxFileBufferSize(int) */
+    public Decryptor withMaxFileBufferSize(int maxFileBufferSize) {
+        setMaxFileBufferSize(maxFileBufferSize);
+        return this;
+    }
+
+    /**
+     * @return Internal buffer size used to copy data from input ciphertext
+     * stream to output plaintext stream internally
+     * @see #DEFAULT_COPY_FILE_BUFFER_SIZE
+     * @see #getCopyBuffer()
+     */
+    public int getCopyFileBufferSize() {
+        return copyFileBufferSize;
+    }
+
+    /**
+     * @param copyFileBufferSize Internal buffer size used to copy data from
+     * input ciphertext stream to output plaintext stream internally
+     * @see #DEFAULT_COPY_FILE_BUFFER_SIZE
+     * @see #getCopyBuffer()
+     */
+    public void setCopyFileBufferSize(int copyFileBufferSize) {
+        this.copyFileBufferSize = copyFileBufferSize;
+    }
+
+    /** @see #setCopyFileBufferSize(int) */
+    public Decryptor withCopyFileBufferSize(int copyFileBufferSize) {
+        setCopyFileBufferSize(copyFileBufferSize);
+        return this;
+    }
+
+    /** @return Keys {@link Ring} to use for decryption and verification. */
     public Ring getRing() {
         return ring;
     }
 
-    /** Keys to use for decryption and verification. */
-    protected void setRing(Ring x) {
+    /** @param x Keys {@link Ring} to use for decryption and verification. */
+    public void setRing(Ring x) {
         ring = x != null ? x : new Ring();
+    }
+
+    /** @see #setRing(Ring) */
+    public Decryptor withRing(Ring x) {
+        setRing(x);
+        return this;
     }
 
     /**
@@ -419,8 +484,8 @@ public class Decryptor {
     /**
      * Matches the specified trailing signatures to the specified verifiers.
      */
-    protected void matchSignatures(Iterator<PGPSignature> signatures,
-    List<Verifier> verifiers) {
+    protected void matchSignatures(
+            Iterator<PGPSignature> signatures, List<Verifier> verifiers) {
         while (signatures.hasNext()) {
             PGPSignature signature = signatures.next();
 
@@ -433,9 +498,10 @@ public class Decryptor {
      * Decrypts the encrypted data as the returned input stream.
      */
     protected InputStream decrypt(Iterator<?> data)
-    throws IOException, PGPException {
+            throws IOException, PGPException {
         PGPPBEEncryptedData pbe = null;
 
+        Ring decryptRing = getRing();
         while (data.hasNext()) {
             Object o = data.next();
 
@@ -444,7 +510,7 @@ public class Decryptor {
 
                 // try to find decryption key for pk-encrypted data
                 Long id = pke.getKeyID();
-                List<Key> keys = ring.findAll(id);
+                List<Key> keys = decryptRing.findAll(id);
 
                 for (Key key: keys) {
                     Subkey subkey = key.findById(id);
@@ -455,8 +521,7 @@ public class Decryptor {
                 }
 
                 if (Util.isEmpty(keys))
-                    log.info("not found decryption key {}",
-                            Util.formatKeyId(id));
+                    log.info("not found decryption key {}", Util.formatKeyId(id));
 
             } else if (o instanceof PGPPBEEncryptedData) {
                 // try first symmetric-key option at the end
@@ -485,13 +550,14 @@ public class Decryptor {
      * Decrypts the encrypted data as the returned input stream.
      */
     protected InputStream decrypt(PGPPBEEncryptedData data)
-    throws IOException, PGPException {
-        if (data == null || Util.isEmpty(symmetricPassphraseChars))
+            throws IOException, PGPException {
+        char[] passphraseChars = getSymmetricPassphraseChars();
+        if ((data == null) || Util.isEmpty(passphraseChars))
             throw new DecryptionException("no suitable decryption key found");
 
         try {
-            return data.getDataStream(buildSymmetricKeyDecryptor(
-                symmetricPassphraseChars));
+            return data.getDataStream(
+                buildSymmetricKeyDecryptor(passphraseChars));
         } catch (PGPDataValidationException e) {
             throw new PassphraseException(
                 "incorrect passphrase for symmetric key", e);
@@ -503,20 +569,21 @@ public class Decryptor {
      * to the specified output stream, while also checking the content
      * with the specified list of verifiers (if verification required).
      */
-    protected long copy(InputStream i, OutputStream o,
-    List<Verifier> verifiers) throws IOException, PGPException {
+    protected long copy(InputStream i, OutputStream o, List<Verifier> verifiers)
+            throws IOException, PGPException {
         long total = 0;
         byte[] buf = getCopyBuffer();
         int len = i.read(buf);
 
-        if (verificationRequired && Util.isEmpty(verifiers))
+        boolean verifyResult = isVerificationRequired();
+        if (verifyResult && Util.isEmpty(verifiers))
             throw new VerificationException(
                 "content not signed with a required key");
 
         while (len != -1) {
             total += len;
 
-            if (verificationRequired) {
+            if (verifyResult) {
                 for (Verifier verifier : verifiers)
                     if (verifier.sig != null)
                         verifier.sig.update(buf, 0, len);
@@ -536,8 +603,8 @@ public class Decryptor {
      * with verified signatures to the file metadata.
      */
     protected void verify(List<Verifier> verifiers, List<FileMetadata> meta)
-    throws PGPException {
-        if (!verificationRequired) return;
+            throws PGPException {
+        if (!isVerificationRequired()) return;
 
         for (Verifier verifier : verifiers) {
             if (!verifier.verify())
@@ -547,8 +614,11 @@ public class Decryptor {
                 log.debug("good signature for key {}", verifier.key);
 
             Key key = verifier.getSignedBy();
-            for (FileMetadata file : meta)
-                file.getVerified().getKeys().add(key);
+            for (FileMetadata file : meta) {
+                Ring verified = file.getVerified();
+                Collection<Key> keys = verified.getKeys();
+                keys.add(key);
+            }
         }
     }
 
@@ -558,8 +628,8 @@ public class Decryptor {
      */
     protected InputStream unarmor(InputStream stream)
             throws IOException, PGPException {
-        DetectionResult result = FileDetection.detectContainer(stream,
-            getMaxFileBufferSize());
+        DetectionResult result =
+            FileDetection.detectContainer(stream, getMaxFileBufferSize());
         switch (result.type) {
             case ASCII_ARMOR:
                 return new ArmoredInputStream(result.stream);
@@ -575,7 +645,7 @@ public class Decryptor {
      * @see PGPObjectFactory
      */
     protected Iterator<?> parse(InputStream stream)
-    throws IOException, PGPException {
+            throws IOException, PGPException {
         return new BcPGPObjectFactory(stream).iterator();
     }
 
@@ -594,8 +664,8 @@ public class Decryptor {
     /**
      * Builds a symmetric-encryption decryptor for the specified subkey.
      */
-    protected PublicKeyDataDecryptorFactory buildPublicKeyDecryptor(
-    Subkey subkey) throws PGPException {
+    protected PublicKeyDataDecryptorFactory buildPublicKeyDecryptor(Subkey subkey)
+            throws PGPException {
         PGPPrivateKey privateKey = subkey.getPrivateKey();
         if (privateKey == null)
             throw new PGPException("no private key for " + subkey);
@@ -605,14 +675,13 @@ public class Decryptor {
     /**
      * Builds a symmetric-key decryptor for the specified passphrase.
      */
-    protected PBEDataDecryptorFactory buildSymmetricKeyDecryptor(
-    char[] passphraseChars) {
+    protected PBEDataDecryptorFactory buildSymmetricKeyDecryptor(char[] passphraseChars) {
         return new BcPBEDataDecryptorFactory(passphraseChars,
             new BcPGPDigestCalculatorProvider());
     }
 
     protected byte[] getCopyBuffer() {
-        return new byte[0x4000];
+        return new byte[getCopyFileBufferSize()];
     }
 
     /**
@@ -624,15 +693,14 @@ public class Decryptor {
         public PGPOnePassSignature sig1;
 
         public Verifier() {
+            super();
         }
 
         public Verifier(PGPSignature s) throws PGPException {
-            this();
             setSig(s);
         }
 
         public Verifier(PGPOnePassSignature s) throws PGPException {
-            this();
             setSig1(s);
         }
 
@@ -700,7 +768,8 @@ public class Decryptor {
          * If found, also sets "key" field to subkey's key.
          */
         private Subkey findVerificationSubkey(Long id) {
-            List<Key> keys = ring.findAll(id);
+            Ring decryptorRing = getRing();
+            List<Key> keys = decryptorRing.findAll(id);
 
             for (Key key: keys) {
                 Subkey subkey = key.findById(id);
