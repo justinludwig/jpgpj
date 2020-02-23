@@ -24,7 +24,9 @@ import org.bouncycastle.openpgp.PGPCompressedDataGenerator;
 import org.bouncycastle.openpgp.PGPEncryptedDataGenerator;
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPLiteralDataGenerator;
+import org.bouncycastle.openpgp.PGPOnePassSignature;
 import org.bouncycastle.openpgp.PGPPublicKey;
+import org.bouncycastle.openpgp.PGPSignature;
 import org.bouncycastle.openpgp.PGPSignatureGenerator;
 import org.bouncycastle.openpgp.PGPSignatureSubpacketGenerator;
 import org.bouncycastle.openpgp.operator.PBEKeyEncryptionMethodGenerator;
@@ -36,6 +38,7 @@ import org.bouncycastle.openpgp.operator.bc.BcPGPDataEncryptorBuilder;
 import org.bouncycastle.openpgp.operator.bc.BcPGPDigestCalculatorProvider;
 import org.bouncycastle.openpgp.operator.bc.BcPublicKeyKeyEncryptionMethodGenerator;
 import org.bouncycastle.util.Strings;
+import org.c02e.jpgpj.FileMetadata.Format;
 import org.c02e.jpgpj.util.Util;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -75,44 +78,48 @@ import org.slf4j.LoggerFactory;
  */
 public class Encryptor {
     public static final int MAX_ENCRYPT_COPY_BUFFER_SIZE = 0x10000;
+    public static final boolean DEFAULT_ASCII_ARMORED = false;
+    public static final boolean DEFAULT_REMOVE_DEFAULT_ARMORED_VERSION_HEADER = false;
 
-    protected boolean asciiArmored;
-    protected boolean removeDefaultArmoredVersionHeader;
+    public static final int DEFAULT_COMPRESSION_LEVEL = 6;
+    public static final CompressionAlgorithm DEFAULT_COMPRESSION_ALGORITHM = CompressionAlgorithm.ZLIB;
+    public static final EncryptionAlgorithm DEFAULT_ENCRYPTION_ALGORITHM = EncryptionAlgorithm.AES128;
+    public static final HashingAlgorithm DEFAULT_SIGNING_ALGORITHM = HashingAlgorithm.SHA256;
+    public static final HashingAlgorithm DEFAULT_KEY_DERIVATION_ALGORITHM = HashingAlgorithm.SHA512;
+    public static final int DEFAULT_KEY_DERIVATION_ALGORITHM_WORK_FACTOR = 255;
+
+    public static final int DEFAULT_MAX_FILE_BUFFER_SIZE = 0x100000;    // 1MB
+
+    protected boolean asciiArmored = DEFAULT_ASCII_ARMORED;
+    protected boolean removeDefaultArmoredVersionHeader = DEFAULT_REMOVE_DEFAULT_ARMORED_VERSION_HEADER;
     protected final Map<String, String> armoredHeaders = new HashMap<>();
     protected EncryptedAsciiArmorHeadersCallback armorHeadersCallback;
 
-    protected int compressionLevel;
-    protected CompressionAlgorithm compressionAlgorithm;
-    protected EncryptionAlgorithm encryptionAlgorithm;
-    protected HashingAlgorithm signingAlgorithm;
+    protected int compressionLevel = DEFAULT_COMPRESSION_LEVEL;
+    protected CompressionAlgorithm compressionAlgorithm = DEFAULT_COMPRESSION_ALGORITHM;
+    protected EncryptionAlgorithm encryptionAlgorithm = DEFAULT_ENCRYPTION_ALGORITHM;
+    protected HashingAlgorithm signingAlgorithm = DEFAULT_SIGNING_ALGORITHM;
 
     protected char[] symmetricPassphraseChars;
     /** @deprecated Null unless explicitly set by user. */
     @Deprecated
     protected String symmetricPassphrase;
-    protected HashingAlgorithm keyDerivationAlgorithm;
-    protected int keyDerivationWorkFactor;
+    protected HashingAlgorithm keyDerivationAlgorithm = DEFAULT_KEY_DERIVATION_ALGORITHM;
+    protected int keyDerivationWorkFactor = DEFAULT_KEY_DERIVATION_ALGORITHM_WORK_FACTOR;
 
-    protected int maxFileBufferSize = 0x100000; //1MB
+    protected int maxFileBufferSize = DEFAULT_MAX_FILE_BUFFER_SIZE;
 
     protected Ring ring;
     protected final Logger log = LoggerFactory.getLogger(Encryptor.class.getName());
 
     /** Constructs an encryptor with an empty key ring. */
     public Encryptor() {
-        compressionLevel = 6;
-        compressionAlgorithm = CompressionAlgorithm.ZLIB;
-        encryptionAlgorithm = EncryptionAlgorithm.AES128;
-        signingAlgorithm = HashingAlgorithm.SHA256;
-        setSymmetricPassphraseChars(null);
-        keyDerivationAlgorithm = HashingAlgorithm.SHA512;
-        keyDerivationWorkFactor = 255;
-        ring = new Ring();
+        this(new Ring());
     }
 
     /** Constructs an encryptor with the specified key ring. */
     public Encryptor(Ring ring) {
-        this();
+        setSymmetricPassphraseChars(null);
         setRing(ring);
     }
 
@@ -121,12 +128,20 @@ public class Encryptor {
         this(new Ring(keys));
     }
 
-    /** True to encode final output with ASCII Armor.  Defaults to false. */
+    /**
+     * @return {@code true} to encode final output with ASCII Armor.
+     * Defaults to false.
+     * @see #DEFAULT_ASCII_ARMORED
+     */
     public boolean isAsciiArmored() {
         return asciiArmored;
     }
 
-    /** True to encode final output with ASCII Armor.  Defaults to false. */
+    /**
+     * @param x {@code true} to encode final output with ASCII Armor.
+     * Defaults to false.
+     * @see #DEFAULT_ASCII_ARMORED
+     */
     public void setAsciiArmored(boolean x) {
         asciiArmored = x;
     }
@@ -162,6 +177,7 @@ public class Encryptor {
      * replace it and/or add others - see headers manipulation methods).
      *
      * @return {@code true} if &quot;Version&quot; should be removed - default={@code false}
+     * @see #DEFAULT_REMOVE_DEFAULT_ARMORED_VERSION_HEADER
      */
     public boolean isRemoveDefaultArmoredVersionHeader() {
         return removeDefaultArmoredVersionHeader;
@@ -176,6 +192,7 @@ public class Encryptor {
      * @param removeDefaultarmoredVersionHeader {@code true} if &quot;Version&quot;
      * should be removed - default={@code false}. <B>Note:</B> relevant only if
      * {@link #setAsciiArmored(boolean) armored} setting was also set.
+     * @see #DEFAULT_REMOVE_DEFAULT_ARMORED_VERSION_HEADER
      */
     public void setRemoveDefaultArmoredVersionHeader(boolean removeDefaultArmoredVersionHeader) {
         this.removeDefaultArmoredVersionHeader = removeDefaultArmoredVersionHeader;
@@ -275,71 +292,79 @@ public class Encryptor {
     }
 
     /**
-     * Compression level, from 1 (fastest and biggest)
+     * @return Compression level, from 1 (fastest and biggest)
      * to 9 (slowest and smallest). Defaults to 6.
+     * @see #DEFAULT_COMPRESSION_LEVEL
      */
     public int getCompressionLevel() {
         return compressionLevel;
     }
 
     /**
-     * Compression level, from 1 (fastest and biggest)
+     * @param x Compression level, from 1 (fastest and biggest)
      * to 9 (slowest and smallest). Defaults to 6.
+     * @see #DEFAULT_COMPRESSION_LEVEL
      */
     public void setCompressionLevel(int x) {
         compressionLevel = x;
     }
 
     /**
-     * Compression algorithm to use.
+     * @return Compression algorithm to use.
      * Defaults to {@link CompressionAlgorithm#ZLIB}.
+     * @see #DEFAULT_COMPRESSION_ALGORITHM
      */
     public CompressionAlgorithm getCompressionAlgorithm() {
         return compressionAlgorithm;
     }
 
     /**
-     * Compression algorithm to use.
+     * @param x Compression algorithm to use.
      * Defaults to {@link CompressionAlgorithm#ZLIB}.
+     * @see #DEFAULT_COMPRESSION_ALGORITHM
      */
     public void setCompressionAlgorithm(CompressionAlgorithm x) {
         compressionAlgorithm = x != null ? x : CompressionAlgorithm.Uncompressed;
     }
 
     /**
-     * Encryption algorithm to use.
+     * @return Encryption algorithm to use.
      * Defaults to {@link EncryptionAlgorithm#AES128}.
+     * @see #DEFAULT_ENCRYPTION_ALGORITHM
      */
     public EncryptionAlgorithm getEncryptionAlgorithm() {
         return encryptionAlgorithm;
     }
 
     /**
-     * Encryption algorithm to use.
+     * @param x Encryption algorithm to use.
      * Defaults to {@link EncryptionAlgorithm#AES128}.
+     * @see #DEFAULT_ENCRYPTION_ALGORITHM
      */
     public void setEncryptionAlgorithm(EncryptionAlgorithm x) {
         encryptionAlgorithm = x != null ? x : EncryptionAlgorithm.Unencrypted;
     }
 
     /**
-     * Signing algorithm to use.
+     * @return Signing algorithm to use.
      * Defaults to {@link HashingAlgorithm#SHA256}.
+     * @see #DEFAULT_SIGNING_ALGORITHM
      */
     public HashingAlgorithm getSigningAlgorithm() {
         return signingAlgorithm;
     }
 
     /**
-     * Signing algorithm to use.
+     * @param x Signing algorithm to use.
      * Defaults to {@link HashingAlgorithm#SHA256}.
+     * @see #DEFAULT_SIGNING_ALGORITHM
      */
     public void setSigningAlgorithm(HashingAlgorithm x) {
         signingAlgorithm = x != null ? x : HashingAlgorithm.Unsigned;
     }
 
     /**
-     * Passphrase to use to encrypt with a symmetric key; or empty char[].
+     * @return Passphrase to use to encrypt with a symmetric key; or empty char[].
      * Note that this char[] itself (and not a copy) will be cached and used
      * until {@link #clearSecrets} is called (or
      * {@link #setSymmetricPassphraseChars} is called again with a different
@@ -350,7 +375,7 @@ public class Encryptor {
     }
 
     /**
-     * Passphrase to use to encrypt with a symmetric key; or empty char[].
+     * @param x Passphrase to use to encrypt with a symmetric key; or empty char[].
      * Note that this char[] itself (and not a copy) will be cached and used
      * until {@link #clearSecrets} is called (or
      * {@link #setSymmetricPassphraseChars} is called again with a different
@@ -367,7 +392,7 @@ public class Encryptor {
     }
 
     /**
-     * Passphrase to use to encrypt with a symmetric key; or empty string.
+     * @return Passphrase to use to encrypt with a symmetric key; or empty string.
      * Prefer {@link #getSymmetricPassphraseChars} to avoid creating extra copies
      * of the passphrase in memory that cannot be cleaned up.
      * @see #getSymmetricPassphraseChars
@@ -379,7 +404,7 @@ public class Encryptor {
     }
 
     /**
-     * Passphrase to use to encrypt with a symmetric key; or empty string.
+     * @param x Passphrase to use to encrypt with a symmetric key; or empty string.
      * Prefer {@link #setSymmetricPassphraseChars} to avoid creating extra copies
      * of the passphrase in memory that cannot be cleaned up.
      * @see #setSymmetricPassphraseChars
@@ -390,36 +415,40 @@ public class Encryptor {
     }
 
     /**
-     * Key-derivation (aka s2k digest) algorithm to use
+     * @return Key-derivation (aka s2k digest) algorithm to use
      * (used to convert the symmetric passphrase into an encryption key).
      * Defaults to {@link HashingAlgorithm#SHA512}.
+     * @see #DEFAULT_KEY_DERIVATION_ALGORITHM
      */
     public HashingAlgorithm getKeyDeriviationAlgorithm() {
         return keyDerivationAlgorithm;
     }
 
     /**
-     * Key-derivation (aka s2k digest) algorithm to use
+     * @para x Key-derivation (aka s2k digest) algorithm to use
      * (used to convert the symmetric passphrase into an encryption key).
      * Defaults to {@link HashingAlgorithm#SHA512}.
+     * @see #DEFAULT_KEY_DERIVATION_ALGORITHM
      */
     public void setKeyDeriviationAlgorithm(HashingAlgorithm x) {
         keyDerivationAlgorithm = x != null ? x : HashingAlgorithm.Unsigned;
     }
 
     /**
-     * Key-derivation work factor (aka s2k count) to use, from 0 to 255
+     * @return Key-derivation work factor (aka s2k count) to use, from 0 to 255
      * (where 1 = 1088 iterations, and 255 = 65,011,712 iterations).
      * Defaults to 255.
+     * @see #DEFAULT_KEY_DERIVATION_ALGORITHM_WORK_FACTOR
      */
     public int getKeyDeriviationWorkFactor() {
         return keyDerivationWorkFactor;
     }
 
     /**
-     * Key-derivation work factor (aka s2k count) to use, from 0 to 255
+     * @param x Key-derivation work factor (aka s2k count) to use, from 0 to 255
      * (where 1 = 1088 iterations, and 255 = 65,011,712 iterations).
      * Defaults to 255.
+     * @see #DEFAULT_KEY_DERIVATION_ALGORITHM_WORK_FACTOR
      */
     public void setKeyDeriviationWorkFactor(int x) {
         keyDerivationWorkFactor = x;
@@ -430,20 +459,21 @@ public class Encryptor {
     }
 
     /**
-     * Encryptor will choose the most appropriate read/write buffer size
-     * for each file. Defaults to 1MB.
+     * @param maxFileBufferSize Encryptor will choose the most appropriate
+     * read/write buffer size for each file. Defaults to 1MB.
+     * @see #DEFAULT_MAX_FILE_BUFFER_SIZE
      */
     public void setMaxFileBufferSize(int maxFileBufferSize) {
         this.maxFileBufferSize = maxFileBufferSize;
     }
 
-    /** Keys to use for encryption and signing. */
+    /** @return Keys to use for encryption and signing. */
     public Ring getRing() {
         return ring;
     }
 
-    /** Keys to use for encryption and signing. */
-    protected void setRing(Ring x) {
+    /** @param x Keys to use for encryption and signing. */
+    public void setRing(Ring x) {
         ring = x != null ? x : new Ring();
     }
 
@@ -781,21 +811,24 @@ public class Encryptor {
      * Wraps with stream that outputs encrypted data packet.
      */
     protected OutputStream encrypt(OutputStream out, FileMetadata meta)
-    throws IOException, PGPException {
-        log.trace("using encryption algorithm {}", encryptionAlgorithm);
+            throws IOException, PGPException {
+        EncryptionAlgorithm encAlgo = getEncryptionAlgorithm();
+        log.trace("using encryption algorithm {}", encAlgo);
 
-        if (encryptionAlgorithm == EncryptionAlgorithm.Unencrypted)
+        if (encAlgo == EncryptionAlgorithm.Unencrypted)
             return null;
 
-        List<Key> keys = ring.getEncryptionKeys();
-        if (Util.isEmpty(keys) && Util.isEmpty(symmetricPassphraseChars))
+        Ring encRing = getRing();
+        List<Key> keys = encRing.getEncryptionKeys();
+        char[] passChars = getSymmetricPassphraseChars();
+        if (Util.isEmpty(keys) && Util.isEmpty(passChars))
             throw new PGPException("no suitable encryption key found");
 
         PGPEncryptedDataGenerator generator = buildEncryptor();
         for (Key key : keys)
             generator.addMethod(buildPublicKeyEncryptor(key));
 
-        if (!Util.isEmpty(symmetricPassphraseChars))
+        if (!Util.isEmpty(passChars))
             generator.addMethod(buildSymmetricKeyEncryptor());
 
         return generator.open(out, getEncryptionBuffer(meta));
@@ -805,26 +838,26 @@ public class Encryptor {
      * Wraps with stream that outputs compressed data packet.
      */
     protected OutputStream compress(OutputStream out, FileMetadata meta)
-    throws IOException, PGPException {
-        log.trace("using compression algorithm {} - {}",
-            compressionAlgorithm, compressionLevel);
+            throws IOException, PGPException {
+        CompressionAlgorithm compAlgo = getCompressionAlgorithm();
+        int compLevel = getCompressionLevel();
+        log.trace("using compression algorithm {} - {}", compAlgo, compLevel);
 
-        if (compressionAlgorithm == CompressionAlgorithm.Uncompressed ||
-            compressionLevel < 1 || compressionLevel > 9)
+        if (compAlgo == CompressionAlgorithm.Uncompressed ||
+                compLevel < 1 || compLevel > 9)
             return null;
 
-        int algo = compressionAlgorithm.ordinal();
-        int level = compressionLevel;
         byte[] buf = getCompressionBuffer(meta);
-        return new PGPCompressedDataGenerator(algo, level).open(out, buf);
+        return new PGPCompressedDataGenerator(compAlgo.ordinal(), compLevel).open(out, buf);
     }
 
     /**
      * Wraps with stream that ouputs literal data packet.
      */
     protected OutputStream packet(OutputStream out, FileMetadata meta)
-    throws IOException, PGPException {
-        char format = meta.getFormat().getCode();
+            throws IOException, PGPException {
+        Format fmt = meta.getFormat();
+        char format = fmt.getCode();
         String name = meta.getName();
         Date date = meta.getLastModifiedDate();
         byte[] buf = getLiteralBuffer(meta);
@@ -836,16 +869,19 @@ public class Encryptor {
      * as header and footer to envelope.
      */
     protected SigningOutputStream sign(OutputStream out, FileMetadata meta)
-    throws IOException, PGPException {
-        log.trace("using signing algorithm {}", signingAlgorithm);
+            throws IOException, PGPException {
+        HashingAlgorithm sigAlg = getSigningAlgorithm();
+        log.trace("using signing algorithm {}", sigAlg);
 
-        if (signingAlgorithm == HashingAlgorithm.Unsigned)
+        if (sigAlg == HashingAlgorithm.Unsigned)
             return null;
 
-        List<Key> signers = ring.getSigningKeys();
+        Ring encRing = getRing();
+        List<Key> signers = encRing.getSigningKeys();
         // skip keys without a passphrase set
         for (int i = signers.size() - 1; i >= 0; i--) {
-            Subkey subkey = signers.get(i).getSigning();
+            Key key = signers.get(i);
+            Subkey subkey = key.getSigning();
             if (!isUsableForSigning(subkey)) {
                 log.info("not using signing key {}", subkey);
                 signers.remove(i);
@@ -862,8 +898,9 @@ public class Encryptor {
      * Copies the content from the specified input stream
      * to the specified output stream.
      */
-    protected void copy(InputStream i, OutputStream o, SigningOutputStream s,
-    FileMetadata meta) throws IOException, PGPException {
+    protected void copy(
+            InputStream i, OutputStream o, SigningOutputStream s, FileMetadata meta)
+                throws IOException, PGPException {
         byte[] buf = getCopyBuffer(meta);
         int len = i.read(buf);
         while (len != -1) {
@@ -879,8 +916,8 @@ public class Encryptor {
      * for the configured encryption algorithm.
      */
     protected PGPEncryptedDataGenerator buildEncryptor() {
-        int algo = encryptionAlgorithm.ordinal();
-        BcPGPDataEncryptorBuilder builder = new BcPGPDataEncryptorBuilder(algo);
+        EncryptionAlgorithm encAlgo = getEncryptionAlgorithm();
+        BcPGPDataEncryptorBuilder builder = new BcPGPDataEncryptorBuilder(encAlgo.ordinal());
         builder.setWithIntegrityPacket(true);
         return new PGPEncryptedDataGenerator(builder);
     }
@@ -889,8 +926,7 @@ public class Encryptor {
      * Builds a PublicKeyKeyEncryptionMethodGenerator
      * for the specified key.
      */
-    protected PublicKeyKeyEncryptionMethodGenerator buildPublicKeyEncryptor(
-    Key key) {
+    protected PublicKeyKeyEncryptionMethodGenerator buildPublicKeyEncryptor(Key key) {
         log.info("using encryption key {}", key.getEncryption());
 
         PGPPublicKey publicKey = key.getEncryption().getPublicKey();
@@ -902,15 +938,16 @@ public class Encryptor {
      * for the specified key.
      */
     protected PBEKeyEncryptionMethodGenerator buildSymmetricKeyEncryptor()
-    throws PGPException {
+            throws PGPException {
+        HashingAlgorithm kdAlgorithm = getKeyDeriviationAlgorithm();
+        int workFactor = getKeyDeriviationWorkFactor();
         log.info("using symmetric encryption with {} hash, work factor {}",
-                keyDerivationAlgorithm, keyDerivationWorkFactor);
+                kdAlgorithm, workFactor);
 
-        int algo = keyDerivationAlgorithm.ordinal();
         return new BcPBEKeyEncryptionMethodGenerator(
-            symmetricPassphraseChars,
-            new BcPGPDigestCalculatorProvider().get(algo),
-            keyDerivationWorkFactor);
+            getSymmetricPassphraseChars(),
+            new BcPGPDigestCalculatorProvider().get(kdAlgorithm.ordinal()),
+            workFactor);
     }
 
     protected boolean isUsableForSigning(Subkey subkey) {
@@ -922,7 +959,7 @@ public class Encryptor {
      * Builds a PGPSignatureGenerator for the specified key and content.
      */
     protected PGPSignatureGenerator buildSigner(Key key, FileMetadata meta)
-    throws PGPException {
+            throws PGPException {
         Subkey subkey = key.getSigning();
 
         log.info("using signing key {}", subkey);
@@ -951,8 +988,7 @@ public class Encryptor {
     /**
      * Builds a PGPContentSignerBuilder for the specified algorithms.
      */
-    protected PGPContentSignerBuilder buildSignerBuilder(
-    int keyAlgorithm, int hashAlgorithm) {
+    protected PGPContentSignerBuilder buildSignerBuilder(int keyAlgorithm, int hashAlgorithm) {
         return new BcPGPContentSignerBuilder(keyAlgorithm, hashAlgorithm);
     }
 
@@ -993,7 +1029,8 @@ public class Encryptor {
     }
 
     protected int estimateOutFileSize(long inFileSize) {
-        if (inFileSize >= maxFileBufferSize) return maxFileBufferSize;
+        int maxBufSize = getMaxFileBufferSize();
+        if (inFileSize >= maxBufSize) return maxBufSize;
 
         // start with size of original input file
         long outFileSize = inFileSize;
@@ -1003,7 +1040,7 @@ public class Encryptor {
             getRing().getSigningKeys().size() + 1
         ) * 512;
 
-        if (asciiArmored) {
+        if (isAsciiArmored()) {
             outFileSize *=
                 // multiply by 4/3 for base64 encoding
                 (4f / 3) *
@@ -1013,7 +1050,7 @@ public class Encryptor {
             outFileSize += 80;
         }
 
-        return (int) Math.min(outFileSize, maxFileBufferSize);
+        return (int) Math.min(outFileSize, maxBufSize);
     }
 
     protected class SigningOutputStream extends FilterOutputStream {
@@ -1021,8 +1058,8 @@ public class Encryptor {
         protected FileMetadata meta;
         protected List<PGPSignatureGenerator> sigs;
 
-        public SigningOutputStream(OutputStream out, List<Key> keys,
-        FileMetadata meta) throws IOException, PGPException {
+        public SigningOutputStream(OutputStream out, List<Key> keys, FileMetadata meta)
+                throws IOException, PGPException {
             super(out);
             this.meta = meta;
             init(keys);
@@ -1069,15 +1106,20 @@ public class Encryptor {
             // with multiple signatures, all but last must be flagged "nested"
             for (int i = 0; i < sigs.size(); i++) {
                 boolean nested = i != sigs.size() - 1;
-                sigs.get(i).generateOnePassVersion(nested).encode(out);
+                PGPSignatureGenerator generator = sigs.get(i);
+                PGPOnePassSignature encoder = generator.generateOnePassVersion(nested);
+                encoder.encode(out);
             }
         }
 
         protected void finish() throws IOException, PGPException {
             // write full signature packets
             // first signature in header must be last signature in footer
-            for (int i = sigs.size() - 1; i >= 0; i--)
-                sigs.get(i).generate().encode(out);
+            for (int i = sigs.size() - 1; i >= 0; i--) {
+                PGPSignatureGenerator generator = sigs.get(i);
+                PGPSignature encoder = generator.generate();
+                encoder.encode(out);
+            }
         }
     }
 }
