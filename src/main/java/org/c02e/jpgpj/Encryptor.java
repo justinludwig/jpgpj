@@ -146,6 +146,12 @@ public class Encryptor {
         asciiArmored = x;
     }
 
+    /** @see #setAsciiArmored(boolean) */
+    public Encryptor withAsciiArmored(boolean x) {
+        setAsciiArmored(x);
+        return this;
+    }
+
     /**
      * @return The last set {@link EncryptedAsciiArmorHeadersCallback}
      * @see #setArmorHeadersCallback(EncryptedAsciiArmorHeadersCallback)
@@ -160,15 +166,21 @@ public class Encryptor {
      * headers besides the global ones set by the encryptor. <B>Note:</B>
      * affects the output only if {@link #isAsciiArmored() armored} setting is used.
      *
-     * @param armorHeadersCallback The callback to invoke - {@code null} if none
+     * @param x The callback to invoke - {@code null} if none
      * @see #isAsciiArmored()
      * @see #isRemoveDefaultArmoredVersionHeader()
      * @see #setArmoredHeaders(Map) setArmoredHeaders
      * @see #addArmoredHeaders(Map) addArmoredHeaders
      * @see #updateArmoredHeader(String, String) updateArmoredHeader
      */
-    public void setArmorHeadersCallback(EncryptedAsciiArmorHeadersCallback armorHeadersCallback) {
-        this.armorHeadersCallback = armorHeadersCallback;
+    public void setArmorHeadersCallback(EncryptedAsciiArmorHeadersCallback x) {
+        this.armorHeadersCallback = x;
+    }
+
+    /** @see #setArmorHeadersCallback(EncryptedAsciiArmorHeadersCallback) */
+    public Encryptor withArmorHeadersCallback(EncryptedAsciiArmorHeadersCallback x) {
+        setArmorHeadersCallback(x);
+        return this;
     }
 
     /**
@@ -194,8 +206,14 @@ public class Encryptor {
      * {@link #setAsciiArmored(boolean) armored} setting was also set.
      * @see #DEFAULT_REMOVE_DEFAULT_ARMORED_VERSION_HEADER
      */
-    public void setRemoveDefaultArmoredVersionHeader(boolean removeDefaultArmoredVersionHeader) {
-        this.removeDefaultArmoredVersionHeader = removeDefaultArmoredVersionHeader;
+    public void setRemoveDefaultArmoredVersionHeader(boolean x) {
+        this.removeDefaultArmoredVersionHeader = x;
+    }
+
+    /** @see #setRemoveDefaultArmoredVersionHeader(boolean) */
+    public Encryptor withRemoveDefaultArmoredVersionHeader(boolean x) {
+        setRemoveDefaultArmoredVersionHeader(x);
+        return this;
     }
 
     /**
@@ -242,6 +260,12 @@ public class Encryptor {
         addArmoredHeaders(headers);
     }
 
+    /** @see #setArmoredHeaders(Map) */
+    public Encryptor withArmoredHeaders(Map<String, String> headers) {
+        setArmoredHeaders(headers);
+        return this;
+    }
+
     /**
      * Adds the specified headers - replaces existing ones and adds the new ones.
      * <B>Note:</B> affects the output only if {@link #isAsciiArmored() armored}
@@ -277,6 +301,12 @@ public class Encryptor {
         return armoredHeaders.put(name, value);
     }
 
+    /** @see #updateArmoredHeader(String, String) */
+    public Encryptor withArmoredHeader(String name, String value) {
+        updateArmoredHeader(name, value);
+        return this;
+    }
+
     /**
      * Removes the specified armored header <B>Note:</B> affects the output only
      * if {@link #isAsciiArmored() armored} setting is used.
@@ -309,6 +339,12 @@ public class Encryptor {
         compressionLevel = x;
     }
 
+    /** @see #setCompressionLevel(int) */
+    public Encryptor withCompressionLevel(int x) {
+        setCompressionLevel(x);
+        return this;
+    }
+
     /**
      * @return Compression algorithm to use.
      * Defaults to {@link CompressionAlgorithm#ZLIB}.
@@ -325,6 +361,12 @@ public class Encryptor {
      */
     public void setCompressionAlgorithm(CompressionAlgorithm x) {
         compressionAlgorithm = x != null ? x : CompressionAlgorithm.Uncompressed;
+    }
+
+    /** @see #setCompressionAlgorithm(CompressionAlgorithm) */
+    public Encryptor withCompressionAlgorithm(CompressionAlgorithm x) {
+        setCompressionAlgorithm(x);
+        return this;
     }
 
     /**
@@ -345,6 +387,12 @@ public class Encryptor {
         encryptionAlgorithm = x != null ? x : EncryptionAlgorithm.Unencrypted;
     }
 
+    /** @see #setEncryptionAlgorithm(EncryptionAlgorithm) */
+    public Encryptor withEncryptionAlgorithm(EncryptionAlgorithm x) {
+        setEncryptionAlgorithm(x);
+        return this;
+    }
+
     /**
      * @return Signing algorithm to use.
      * Defaults to {@link HashingAlgorithm#SHA256}.
@@ -361,6 +409,12 @@ public class Encryptor {
      */
     public void setSigningAlgorithm(HashingAlgorithm x) {
         signingAlgorithm = x != null ? x : HashingAlgorithm.Unsigned;
+    }
+
+    /** @see #setSigningAlgorithm(HashingAlgorithm) */
+    public Encryptor withSigningAlgorithm(HashingAlgorithm x) {
+        setSigningAlgorithm(x);
+        return this;
     }
 
     /**
@@ -391,6 +445,12 @@ public class Encryptor {
         }
     }
 
+    /** @see #setSymmetricPassphraseChars(char[]) */
+    public Encryptor withSymmetricPassphraseChars(char[] x) {
+        setSymmetricPassphraseChars(x);
+        return this;
+    }
+
     /**
      * @return Passphrase to use to encrypt with a symmetric key; or empty string.
      * Prefer {@link #getSymmetricPassphraseChars} to avoid creating extra copies
@@ -414,6 +474,12 @@ public class Encryptor {
         symmetricPassphrase = x;
     }
 
+    /** @see #setSymmetricPassphrase(String) */
+    public Encryptor withSymmetricPassphrase(String x) {
+        setSymmetricPassphrase(x);
+        return this;
+    }
+
     /**
      * @return Key-derivation (aka s2k digest) algorithm to use
      * (used to convert the symmetric passphrase into an encryption key).
@@ -432,6 +498,12 @@ public class Encryptor {
      */
     public void setKeyDeriviationAlgorithm(HashingAlgorithm x) {
         keyDerivationAlgorithm = x != null ? x : HashingAlgorithm.Unsigned;
+    }
+
+    /** @see #setKeyDeriviationAlgorithm(HashingAlgorithm) */
+    public Encryptor withDeriviationAlgorithm(HashingAlgorithm x) {
+        setKeyDeriviationAlgorithm(x);
+        return this;
     }
 
     /**
@@ -454,6 +526,12 @@ public class Encryptor {
         keyDerivationWorkFactor = x;
     }
 
+    /** @see #setKeyDeriviationWorkFactor(int) */
+    public Encryptor withKeyDeriviationWorkFactor(int x) {
+        setKeyDeriviationWorkFactor(x);
+        return this;
+    }
+
     public int getMaxFileBufferSize() {
         return maxFileBufferSize;
     }
@@ -467,6 +545,12 @@ public class Encryptor {
         this.maxFileBufferSize = maxFileBufferSize;
     }
 
+    /** @see #setMaxFileBufferSize(int) */
+    public Encryptor withMaxFileBufferSize(int maxFileBufferSize) {
+        setMaxFileBufferSize(maxFileBufferSize);
+        return this;
+    }
+
     /** @return Keys to use for encryption and signing. */
     public Ring getRing() {
         return ring;
@@ -475,6 +559,12 @@ public class Encryptor {
     /** @param x Keys to use for encryption and signing. */
     public void setRing(Ring x) {
         ring = x != null ? x : new Ring();
+    }
+
+    /** @see #setRing(Ring) */
+    public Encryptor withRing(Ring x) {
+        setRing(x);
+        return this;
     }
 
     /**

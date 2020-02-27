@@ -13,10 +13,10 @@ class EncryptorSpec extends Specification {
 
     def "literal only"() {
         when:
-        def encryptor = new Encryptor();
-        encryptor.compressionAlgorithm = CompressionAlgorithm.Uncompressed
-        encryptor.encryptionAlgorithm = EncryptionAlgorithm.Unencrypted
-        encryptor.signingAlgorithm = HashingAlgorithm.Unsigned
+        def encryptor = new Encryptor()
+            .withCompressionAlgorithm(CompressionAlgorithm.Uncompressed)
+            .withEncryptionAlgorithm(EncryptionAlgorithm.Unencrypted)
+            .withSigningAlgorithm(HashingAlgorithm.Unsigned)
         encryptor.encrypt plainIn, cipherOut
 
         def decryptor = new Decryptor()
@@ -91,14 +91,14 @@ class EncryptorSpec extends Specification {
     def "encrypt symmetric without signing"() {
         when:
         def encryptor = new Encryptor()
-        encryptor.signingAlgorithm = HashingAlgorithm.Unsigned
-        encryptor.symmetricPassphrase = 'c02e'
-        encryptor.keyDerivationWorkFactor = 10
+            .withSigningAlgorithm(HashingAlgorithm.Unsigned)
+            .withSymmetricPassphrase('c02e')
+            .withKeyDeriviationWorkFactor(10)
         encryptor.encrypt plainIn, cipherOut
 
         def decryptor = new Decryptor()
-        decryptor.symmetricPassphrase = 'c02e'
-        decryptor.verificationRequired = false
+            .withSymmetricPassphrase('c02e')
+            .withVerificationRequired(false)
         decryptor.decrypt cipherIn, plainOut
 
         then:
@@ -108,9 +108,9 @@ class EncryptorSpec extends Specification {
     def "encrypt with multiple keys"() {
         when:
         def encryptor = new Encryptor(new Ring(stream('test-ring-pub.asc')))
-        encryptor.signingAlgorithm = HashingAlgorithm.Unsigned
-        encryptor.symmetricPassphrase = 'c02e'
-        encryptor.keyDerivationWorkFactor = 10
+            .withSigningAlgorithm(HashingAlgorithm.Unsigned)
+            .withSymmetricPassphrase('c02e')
+            .withKeyDeriviationWorkFactor(10)
         encryptor.encrypt plainIn, cipherOut
 
         // decrypt with key 1
@@ -270,12 +270,14 @@ hQEMAyne546XDHBhAQ...
     def "encrypt armored without version header"() {
         when:
             def encryptor = new Encryptor(new Ring(stream('test-key-1.asc')))
-            encryptor.asciiArmored = true
-            encryptor.removeDefaultArmoredVersionHeader = true
+                .withAsciiArmored(true)
+                .withRemoveDefaultArmoredVersionHeader(true)
             encryptor.ring.keys*.passphrase = 'c02e'
             encryptor.encrypt plainIn, cipherOut
+
             def decryptor = new Decryptor(new Ring(stream('test-key-1.asc')))
             decryptor.ring.keys*.passphrase = 'c02e'
+
             def result = decryptor.decryptWithFullDetails cipherIn, plainOut
             def armorHeaders = result.armorHeaders
 
@@ -288,22 +290,24 @@ hQEMAyne546XDHBhAQ...
     def "encrypt and use user defined ascii armor headers"() {
         when:
             def encryptor = new Encryptor(new Ring(stream('test-key-1.asc')))
-            encryptor.asciiArmored = true
+                .withAsciiArmored(true)
+                .withArmoredHeader("Version", "3.14")
+                .withArmoredHeader("Encryptor", "c02e")
+                .withArmorHeadersCallback(new EncryptedAsciiArmorHeadersCallback() {
+                    @Override
+                    public void prepareAsciiArmoredHeaders(
+                            Encryptor enc, FileMetadata meta, EncryptedAsciiArmorHeadersManipulator manipulator) {
+                        manipulator.setHeader("Version", "2.71")    // override
+                        manipulator.setHeader("Callback", "true")   // add new
+                    }
+                })
             encryptor.ring.keys*.passphrase = 'c02e'
-            encryptor.updateArmoredHeader("Version", "3.14")
-            encryptor.updateArmoredHeader("Encryptor", "c02e")
-            encryptor.armorHeadersCallback = new EncryptedAsciiArmorHeadersCallback() {
-                @Override
-                public void prepareAsciiArmoredHeaders(
-                        Encryptor enc, FileMetadata meta, EncryptedAsciiArmorHeadersManipulator manipulator) {
-                    manipulator.setHeader("Version", "2.71")    // override
-                    manipulator.setHeader("Callback", "true")   // add new
-                }
-            }
+            
             encryptor.encrypt plainIn, cipherOut
             
             def decryptor = new Decryptor(new Ring(stream('test-key-1.asc')))
             decryptor.ring.keys*.passphrase = 'c02e'
+
             def result = decryptor.decryptWithFullDetails cipherIn, plainOut
             // result headers list is unmodifiable and we want to sort it
             def armorHeaders = new ArrayList<>(result.armorHeaders)
@@ -555,14 +559,14 @@ hQEMAyne546XDHBhAQ...
         when:
         def passphrase = 'c02e' as char[]
         def encryptor = new Encryptor()
-        encryptor.signingAlgorithm = HashingAlgorithm.Unsigned
-        encryptor.symmetricPassphraseChars = passphrase
-        encryptor.keyDerivationWorkFactor = 10
+            .withSigningAlgorithm(HashingAlgorithm.Unsigned)
+            .withSymmetricPassphraseChars(passphrase)
+            .withKeyDeriviationWorkFactor(10)
         encryptor.encrypt plainIn, cipherOut
 
         def decryptor = new Decryptor()
-        decryptor.symmetricPassphrase = 'c02e'
-        decryptor.verificationRequired = false
+            .withSymmetricPassphrase(new String(passphrase))
+            .withVerificationRequired(false)
         decryptor.decrypt cipherIn, plainOut
 
         then:
