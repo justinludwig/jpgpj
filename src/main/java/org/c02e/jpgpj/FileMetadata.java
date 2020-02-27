@@ -41,34 +41,39 @@ public class FileMetadata {
         }
     }
 
+    public static final String DEFAULT_NAME = "";
+    public static final Format DEFAULT_FORMAT = Format.BINARY;
+
     protected String name;
+    protected Format format;
     protected long length;
     protected long lastModified;
-    protected Format format;
-    protected Ring verified;
+    protected Ring verified = new Ring();
 
     /** Constructs a metadata object with default values. */
     public FileMetadata() {
-        this("");
+        this(DEFAULT_NAME);
     }
 
     /** Constructs a metadata object from Bouncy Castle message data. */
     public FileMetadata(PGPLiteralData data) {
         this(data.getFileName(), Format.byCode((char) data.getFormat()));
 
-        if (data.getModificationTime() != null)
-            setLastModified(data.getModificationTime().getTime());
+        Date modificationTime = data.getModificationTime();
+        if (modificationTime != null) {
+            setLastModified(modificationTime.getTime());
+        }
     }
 
     /** Constructs a metadata object from a file. */
     public FileMetadata(File file) {
-        this();
+        this(DEFAULT_NAME, DEFAULT_FORMAT); // in case file is null
         setFile(file);
     }
 
-    /** Constructs a metadata object with the specified file name. */
+    /** Constructs a metadata object with the specified file name . */
     public FileMetadata(String name) {
-        this(name, Format.BINARY);
+        this(name, DEFAULT_FORMAT);
     }
 
     /**
@@ -76,9 +81,7 @@ public class FileMetadata {
      * and line-ending format.
      */
     public FileMetadata(String name, Format format) {
-        setName(name);
-        setFormat(format);
-        verified = new Ring();
+        this(name, format, 0L, 0L);
     }
 
     /**
@@ -86,51 +89,88 @@ public class FileMetadata {
      * line-ending format, length in bytes,
      * and modified date in ms since the epoch.
      */
-    public FileMetadata(String name, Format format,
-    long length, long lastModified) {
-        this(name, format);
+    public FileMetadata(String name, Format format, long length, long lastModified) {
+        setName(name);
+        setFormat(format);
         setLength(length);
         setLastModified(lastModified);
     }
 
-    /** Original file name ("foo.txt"), or empty string (""). */
+    /** @return Original file name (&quot;foo.txt&quot;), or {@value #DEFAULT_NAME}. */
     public String getName() {
         return name;
     }
-    /** Original file name ("foo.txt"), or empty string (""). */
+
+    /**
+     * @param x Original file name (&quot;foo.txt&quot;) - set to
+     * {@value #DEFAULT_NAME} if {@code null}
+     */
     public void setName(String x) {
-        name = x != null ? x : "";
+        name = x != null ? x : DEFAULT_NAME;
     }
 
-    /** Original file length in bytes, or 0. */
+    /** @see #setName(String) */
+    public FileMetadata withName(String x) {
+        setName(x);
+        return this;
+    }
+
+    /** @return Original file length in bytes, or 0. */
     public long getLength() {
         return length;
     }
-    /** Original file length in bytes, or 0. */
+
+    /** @param x Original file length in bytes, or 0. */
     public void setLength(long x) {
         length = x;
     }
 
-    /** Original file modified date in ms since epoch, or 0. */
+    /** @see #setLength(long) */
+    public FileMetadata withLength(long x) {
+        setLength(x);
+        return this;
+    }
+
+    /** @return Original file modified date in ms since epoch, or 0. */
     public long getLastModified() {
         return lastModified;
     }
-    /** Original file modified date in ms since epoch, or 0. */
+
+    /** @param x Original file modified date in ms since epoch, or 0. */
     public void setLastModified(long x) {
         lastModified = x;
     }
-    /** Original file modified date, or date of the epoch. */
-    public Date getLastModifiedDate() {
-        return new Date(lastModified);
+
+    /** @see #setLastModified(long) */
+    public FileMetadata withLastModified(long x) {
+        setLastModified(x);
+        return this;
     }
 
-    /** Original file format, or binary. */
+    /**
+     * @return Original file modified date, or date of the epoch.
+     * @see #getLastModified()
+     * @see #setLastModified(long)
+     * @see #withLastModified(long)
+     */
+    public Date getLastModifiedDate() {
+        return new Date(getLastModified());
+    }
+
+    /** @return Original file format, or binary. */
     public Format getFormat() {
         return format;
     }
-    /** Original file format, or binary. */
+
+    /** @param x Original file format, or {@link #DEFAULT_FORMAT} if {@code null}. */
     public void setFormat(Format x) {
         format = x != null ? x : Format.BINARY;
+    }
+
+    /** @see #setFormat(Format) */
+    public FileMetadata withFormat(Format x) {
+        setFormat(x);
+        return this;
     }
 
     /**
@@ -144,7 +184,8 @@ public class FileMetadata {
     }
 
     /**
-     * Original file from which to extract the metadata.
+     * @param file Original file from which to extract the
+     * metadata - ignored if {@code null}
      * Does not extract {@link Format} metadata.
      */
     public void setFile(File file) {
@@ -153,6 +194,12 @@ public class FileMetadata {
         setName(file.getName());
         setLength(file.length());
         setLastModified(file.lastModified());
+    }
+
+    /** @see #setFile(File) */
+    public FileMetadata withFile(File file) {
+        setFile(file);
+        return this;
     }
 
     /**
