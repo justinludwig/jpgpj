@@ -201,7 +201,7 @@ public class Encryptor {
      * replace it and/or add others - see headers manipulation methods). <B>Note:</B>
      * affects the output only if {@link #isAsciiArmored() armored} setting is used.
      *
-     * @param removeDefaultarmoredVersionHeader {@code true} if &quot;Version&quot;
+     * @param x {@code true} if &quot;Version&quot;
      * should be removed - default={@code false}. <B>Note:</B> relevant only if
      * {@link #setAsciiArmored(boolean) armored} setting was also set.
      * @see #DEFAULT_REMOVE_DEFAULT_ARMORED_VERSION_HEADER
@@ -491,7 +491,7 @@ public class Encryptor {
     }
 
     /**
-     * @para x Key-derivation (aka s2k digest) algorithm to use
+     * @param x Key-derivation (aka s2k digest) algorithm to use
      * (used to convert the symmetric passphrase into an encryption key).
      * Defaults to {@link HashingAlgorithm#SHA512}.
      * @see #DEFAULT_KEY_DERIVATION_ALGORITHM
@@ -695,7 +695,7 @@ public class Encryptor {
     }
 
     /**
-     * Builds a wrapper {@link OutputStrean} where everything written to the it is
+     * Builds a wrapper {@link OutputStream} where everything written to the it is
      * encrypted+compressed+signed according to the encryptor's configuration,
      * and then written to the specified target file. Closing the wrapper stream finalizes
      * the encryption and signature, and finishes writing all the wrapper stream's
@@ -741,7 +741,7 @@ public class Encryptor {
      * and then written to the original stream. Closing the wrapper stream finalizes
      * the encryption and signature, and finishes writing all the wrapper stream's
      * content to the original stream. The original stream will be closed if
-     * <tt>closeOriginal</tt> parameter is {@code true} - otherwise, it is the
+     * <code>closeOriginal</code> parameter is {@code true} - otherwise, it is the
      * <U>caller's</U> responsibility to close it after having closed the wrapper.
      *
      * @param ciphertext The original {@link OutputStream} into which the
