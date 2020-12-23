@@ -14,6 +14,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 
 import org.bouncycastle.bcpg.ArmoredInputStream;
 import org.bouncycastle.openpgp.PGPCompressedData;
@@ -293,7 +294,7 @@ public class Decryptor {
      */
     public FileMetadata decrypt(File ciphertext, File plaintext)
             throws IOException, PGPException {
-        if (ciphertext.equals(plaintext))
+        if (Objects.equals(ciphertext.getAbsoluteFile(), plaintext.getAbsoluteFile()))
             throw new IOException("cannot decrypt " + ciphertext +
                 " over itself");
 

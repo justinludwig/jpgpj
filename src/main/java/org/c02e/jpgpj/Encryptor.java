@@ -603,7 +603,7 @@ public class Encryptor {
      */
     public void encrypt(File plaintext, File ciphertext)
             throws IOException, PGPException {
-        if (plaintext.equals(ciphertext))
+        if (Objects.equals(plaintext.getAbsoluteFile(), ciphertext.getAbsoluteFile()))
             throw new IOException("cannot encrypt " + plaintext +
                 " over itself");
 
