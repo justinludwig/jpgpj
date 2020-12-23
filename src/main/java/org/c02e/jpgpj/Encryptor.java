@@ -612,31 +612,45 @@ public class Encryptor {
             log.debug("encrypt({}) deleted {}", plaintext, ciphertext);
         }
 
-        InputStream input = null;
-        OutputStream output = null;
-        try {
-            int bestFileBufferSize =
-                Util.bestFileBufferSize(plaintext.length(), maxFileBufferSize);
-            input = new BufferedInputStream(
-                new FileInputStream(plaintext), bestFileBufferSize);
-            output = new BufferedOutputStream(
-                new FileOutputStream(ciphertext),
-                estimateOutFileSize(plaintext.length()));
-            encrypt(input, output, new FileMetadata(plaintext));
+        FileMetadata meta = new FileMetadata(plaintext);
+        long inputSize = meta.getLength();
+        try (InputStream sourceStream = new FileInputStream(plaintext);
+             InputStream input = wrapSourceInputStream(sourceStream, inputSize);
+             OutputStream targetStream = new FileOutputStream(ciphertext);
+             OutputStream output = wrapTargetOutputStream(targetStream, inputSize)) {
+            encrypt(input, output, meta);
         } catch (Exception e) {
             // delete output file if anything went wrong
-            if (output != null)
-                try {
-                    output.close();
-                    ciphertext.delete();
-                } catch (Exception ee) {
-                    log.error("failed to delete bad output file " + plaintext, ee);
-                }
+            if (!ciphertext.delete()) {
+                log.warn("encrypt({}) cannot clean up {}", plaintext, ciphertext);
+            }
             throw e;
-        } finally {
-            try { output.close(); } catch (Exception e) {}
-            try { input.close(); } catch (Exception e) {}
         }
+    }
+
+    /**
+     * @param sourceStream Original source (plaintext) {@link InputStream}
+     * @param inputSize Expected input (plaintext) size
+     * @return A wrapper buffered stream optimized for the input size according to
+     * the current encryptor settings
+     * @throws IOException If failed to generate the wrapper
+     */
+    public InputStream wrapSourceInputStream(InputStream sourceStream, long inputSize) throws IOException {
+        int bestFileBufferSize = Util.bestFileBufferSize(inputSize, getMaxFileBufferSize());
+        return new BufferedInputStream(sourceStream, bestFileBufferSize);
+    }
+
+    /**
+     * @param targetStream Original target (ciphertext) {@link OutputStream}
+     * @param inputSize Expected input (plaintext) size
+     * @return A wrapper buffered stream optimized for the input size according to
+     * the current encryptor settings
+     * @throws IOException If failed to generate the wrapper
+     * @see #estimateOutFileBufferSize(long)
+     */
+    public OutputStream wrapTargetOutputStream(OutputStream targetStream, long inputSize) throws IOException {
+        int bestFileBufferSize = estimateOutFileBufferSize(inputSize);
+        return new BufferedOutputStream(targetStream, bestFileBufferSize);
     }
 
     /**
@@ -1082,27 +1096,47 @@ public class Encryptor {
         return new BcPGPContentSignerBuilder(keyAlgorithm, hashAlgorithm);
     }
 
-    protected byte[] getEncryptionBuffer(FileMetadata meta) {
-        return new byte[bestPacketSize(meta)];
+    public byte[] getEncryptionBuffer(FileMetadata meta) {
+        return getEncryptionBuffer((meta == null) ? 0L : meta.getLength());
     }
 
-    protected byte[] getCompressionBuffer(FileMetadata meta) {
-        return new byte[bestPacketSize(meta)];
+    public byte[] getEncryptionBuffer(long inputSize) {
+        return new byte[bestPacketSize(inputSize)];
     }
 
-    protected byte[] getLiteralBuffer(FileMetadata meta) {
-        return new byte[bestPacketSize(meta)];
+    public byte[] getCompressionBuffer(FileMetadata meta) {
+        return getCompressionBuffer((meta == null) ? 0L : meta.getLength());
     }
 
-    protected byte[] getCopyBuffer(FileMetadata meta) {
-        int len = (meta == null) ? 0 : (int) meta.getLength();
+    public byte[] getCompressionBuffer(long inputSize) {
+        return new byte[bestPacketSize(inputSize)];
+    }
+
+    public byte[] getLiteralBuffer(FileMetadata meta) {
+        return getLiteralBuffer((meta == null) ? 0L : meta.getLength());
+    }
+
+    public byte[] getLiteralBuffer(long inputSize) {
+        return new byte[bestPacketSize(inputSize)];
+    }
+
+    public byte[] getCopyBuffer(FileMetadata meta) {
+        return getCopyBuffer((meta == null) ? 0L : meta.getLength());
+    }
+
+    public byte[] getCopyBuffer(long inputSize) {
+        int len = (int) inputSize;
         if (len <= 0 || len > MAX_ENCRYPT_COPY_BUFFER_SIZE)
             len = MAX_ENCRYPT_COPY_BUFFER_SIZE;
         return new byte[len];
     }
 
-    protected int bestPacketSize(FileMetadata meta) {
-        int len = (int) meta.getLength();
+    public int bestPacketSize(FileMetadata meta) {
+        return bestPacketSize((meta == null) ? 0L : meta.getLength());
+    }
+
+    public int bestPacketSize(long inputSize) {
+        int len = (int) inputSize;
 
         if (len > 0) {
             // add some extra space for packet flags
@@ -1112,13 +1146,19 @@ public class Encryptor {
         }
 
         // cap size at 64k
-        if (len <= 0 || len > 0x10000)
-            len = 0x10000;
+        if (len <= 0 || len > MAX_ENCRYPT_COPY_BUFFER_SIZE) {
+            len = MAX_ENCRYPT_COPY_BUFFER_SIZE;
+        }
 
         return len;
     }
 
-    protected int estimateOutFileSize(long inFileSize) {
+    /**
+     * @param inFileSize Input (plaintext) file size
+     * @return The recommended buffering for the target (ciphertext) output stream
+     * @see #getMaxFileBufferSize()
+     */
+    public int estimateOutFileBufferSize(long inFileSize) {
         int maxBufSize = getMaxFileBufferSize();
         if (inFileSize >= maxBufSize) return maxBufSize;
 
@@ -1145,7 +1185,7 @@ public class Encryptor {
 
     protected class SigningOutputStream extends FilterOutputStream {
         protected final AtomicBoolean finished = new AtomicBoolean(false);
-        protected FileMetadata meta;
+        protected final FileMetadata meta;
         protected List<PGPSignatureGenerator> sigs;
 
         public SigningOutputStream(OutputStream out, List<Key> keys, FileMetadata meta)

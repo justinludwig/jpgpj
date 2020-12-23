@@ -779,7 +779,7 @@ hQEMAyne546XDHBhAQ...
         setup:
         def encryptor = new Encryptor();
         expect:
-        encryptor.estimateOutFileSize(inputSize) == outputSize
+        encryptor.estimateOutFileBufferSize(inputSize) == outputSize
         where:
         inputSize << [
             -1, 0, 1,
@@ -800,7 +800,7 @@ hQEMAyne546XDHBhAQ...
         def encryptor = new Encryptor();
         encryptor.asciiArmored = true
         expect:
-        encryptor.estimateOutFileSize(inputSize) == outputSize
+        encryptor.estimateOutFileBufferSize(inputSize) == outputSize
         where:
         inputSize << [
             -1, 0, 1,
@@ -822,7 +822,7 @@ hQEMAyne546XDHBhAQ...
         def encryptor = new Encryptor(new Ring(stream('test-ring.asc')))
         encryptor.ring.findAll('key-1')*.signing*.forSigning = false
         expect:
-        encryptor.estimateOutFileSize(inputSize) == outputSize
+        encryptor.estimateOutFileBufferSize(inputSize) == outputSize
         where:
         inputSize << [
             -1, 0, 1,
@@ -849,7 +849,7 @@ hQEMAyne546XDHBhAQ...
         when:
         def plainIn = new ByteArrayInputStream(new byte[inputSize])
         encryptor.encrypt plainIn, cipherOut
-        def estimate = encryptor.estimateOutFileSize(inputSize)
+        def estimate = encryptor.estimateOutFileBufferSize(inputSize)
         def actual = cipherOut.size()
         then:
         estimate > actual
@@ -870,7 +870,7 @@ hQEMAyne546XDHBhAQ...
         when:
         def plainIn = new ByteArrayInputStream(new byte[inputSize])
         encryptor.encrypt plainIn, cipherOut
-        def estimate = encryptor.estimateOutFileSize(inputSize)
+        def estimate = encryptor.estimateOutFileBufferSize(inputSize)
         def actual = cipherOut.size()
         then:
         estimate > actual

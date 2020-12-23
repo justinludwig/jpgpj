@@ -298,33 +298,47 @@ public class Decryptor {
                 " over itself");
 
         // delete old output file
-        plaintext.delete();
+        if (plaintext.delete()) {
+            log.debug("decrypt({}) deleted {}", ciphertext, plaintext);
+        }
 
-        InputStream input = null;
-        OutputStream output = null;
-        try {
-            int bestBufferSize =
-                Util.bestFileBufferSize(ciphertext.length(), maxFileBufferSize);
-            input = new BufferedInputStream(
-                new FileInputStream(ciphertext), bestBufferSize);
-            output = new BufferedOutputStream(
-                new FileOutputStream(plaintext), bestBufferSize);
+        long inputSize = ciphertext.length();
+        try (InputStream sourceStream = new FileInputStream(ciphertext);
+             InputStream input = wrapSourceInputStream(sourceStream, inputSize);
+             OutputStream targetStream = new FileOutputStream(plaintext);
+             OutputStream output = wrapTargetOutputStream(targetStream, inputSize)) {
             return decrypt(input, output);
         } catch (Exception e) {
             // delete output file if anything went wrong
-            if (output != null)
-                try {
-                    output.close();
-                    plaintext.delete();
-                } catch (Exception ee) {
-                    log.error("failed to delete bad output file {}",
-                        plaintext, ee);
-                }
+            if (!plaintext.delete()) {
+                log.warn("decrypt({}) cannot clean up {}", ciphertext, plaintext);
+            }
             throw e;
-        } finally {
-            try { output.close(); } catch (Exception e) {}
-            try { input.close(); } catch (Exception e) {}
         }
+    }
+
+    /**
+     * @param sourceStream Original source (ciphertext) {@link InputStream}
+     * @param inputSize Expected input (ciphertext) size
+     * @return A wrapper buffered stream optimized for the input size according to
+     * the current encryptor settings
+     * @throws IOException If failed to generate the wrapper
+     */
+    public InputStream wrapSourceInputStream(InputStream sourceStream, long inputSize) throws IOException {
+        int bestFileBufferSize = Util.bestFileBufferSize(inputSize, getMaxFileBufferSize());
+        return new BufferedInputStream(sourceStream, bestFileBufferSize);
+    }
+
+    /**
+     * @param targetStream Original target (plaintext) {@link OutputStream}
+     * @param inputSize Expected input (ciphertext) size
+     * @return A wrapper buffered stream optimized for the input size according to
+     * the current encryptor settings
+     * @throws IOException If failed to generate the wrapper
+     */
+    public OutputStream wrapTargetOutputStream(OutputStream targetStream, long inputSize) throws IOException {
+        int bestFileBufferSize = Util.bestFileBufferSize(inputSize, getMaxFileBufferSize());
+        return new BufferedOutputStream(targetStream, bestFileBufferSize);
     }
 
     /**
@@ -537,7 +551,7 @@ public class Decryptor {
      * Decrypts the encrypted data as the returned input stream.
      */
     protected InputStream decrypt(PGPPublicKeyEncryptedData data, Subkey subkey)
-    throws IOException, PGPException {
+            throws IOException, PGPException {
         if (data == null || subkey == null)
             throw new DecryptionException("no suitable decryption key found");
 
@@ -680,7 +694,7 @@ public class Decryptor {
             new BcPGPDigestCalculatorProvider());
     }
 
-    protected byte[] getCopyBuffer() {
+    public byte[] getCopyBuffer() {
         return new byte[getCopyFileBufferSize()];
     }
 
