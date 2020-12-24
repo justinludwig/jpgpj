@@ -1096,34 +1096,60 @@ public class Encryptor {
         return new BcPGPContentSignerBuilder(keyAlgorithm, hashAlgorithm);
     }
 
+    /**
+     * Internal buffer for encrypted-data packets, sized based on plaintext length.
+     */
     public byte[] getEncryptionBuffer(FileMetadata meta) {
         return getEncryptionBuffer((meta == null) ? 0L : meta.getLength());
     }
 
+    /**
+     * Internal buffer for encrypted-data packets, sized based on plaintext length.
+     */
     public byte[] getEncryptionBuffer(long inputSize) {
         return new byte[bestPacketSize(inputSize)];
     }
 
+    /**
+     * Internal buffer for compressed-data packets, sized based on plaintext length.
+     */
     public byte[] getCompressionBuffer(FileMetadata meta) {
         return getCompressionBuffer((meta == null) ? 0L : meta.getLength());
     }
 
+    /**
+     * Internal buffer for compressed-data packets, sized based on plaintext length.
+     */
     public byte[] getCompressionBuffer(long inputSize) {
         return new byte[bestPacketSize(inputSize)];
     }
 
+    /**
+     * Internal buffer for literal-data packets, sized based on plaintext length.
+     */
     public byte[] getLiteralBuffer(FileMetadata meta) {
         return getLiteralBuffer((meta == null) ? 0L : meta.getLength());
     }
 
+    /**
+     * Internal buffer for literal-data packets, sized based on plaintext length.
+     */
     public byte[] getLiteralBuffer(long inputSize) {
         return new byte[bestPacketSize(inputSize)];
     }
 
+    /**
+     * Internal buffer for copying plaintext into the encryption pipeline,
+     * sized based on plaintext length.
+     */
     public byte[] getCopyBuffer(FileMetadata meta) {
         return getCopyBuffer((meta == null) ? 0L : meta.getLength());
     }
 
+    /**
+     * Internal buffer for copying plaintext into the encryption pipeline,
+     * sized based on plaintext length.
+     */
     public byte[] getCopyBuffer(long inputSize) {
         int len = (int) inputSize;
         if (len <= 0 || len > MAX_ENCRYPT_COPY_BUFFER_SIZE)
@@ -1131,10 +1157,16 @@ public class Encryptor {
         return new byte[len];
     }
 
+    /**
+     * Calculates optimal PGP packet size, based on plaintext length.
+     */
     public int bestPacketSize(FileMetadata meta) {
         return bestPacketSize((meta == null) ? 0L : meta.getLength());
     }
 
+    /**
+     * Calculates optimal PGP packet size, based on plaintext length.
+     */
     public int bestPacketSize(long inputSize) {
         int len = (int) inputSize;
 

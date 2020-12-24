@@ -695,6 +695,9 @@ public class Decryptor {
             new BcPGPDigestCalculatorProvider());
     }
 
+    /**
+     * Internal buffer for copying decrypted plaintext into the output stream.
+     */
     public byte[] getCopyBuffer() {
         return new byte[getCopyFileBufferSize()];
     }
