@@ -3,12 +3,13 @@ package org.c02e.jpgpj;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -593,6 +594,7 @@ public class Encryptor {
      * to turn off or adjust signing, compression, or encryption.
      * @param plaintext File to encrypt.
      * @param ciphertext Location of output file.
+     * @return The {@link FileMetadata} of the encrypted plaintext
      * @throws IOException if an IO error occurs reading from or writing to
      * the underlying input or output streams.
      * @throws PGPException if no encryption keys and no passphrase for
@@ -601,29 +603,59 @@ public class Encryptor {
      * @throws PassphraseException if an incorrect passphrase was supplied
      * for one of the signing keys.
      */
-    public void encrypt(File plaintext, File ciphertext)
+    public FileMetadata encrypt(File plaintext, File ciphertext)
             throws IOException, PGPException {
-        if (Objects.equals(plaintext.getAbsoluteFile(), ciphertext.getAbsoluteFile()))
+        return encrypt(plaintext.toPath(), ciphertext.toPath());
+    }
+
+    /**
+     * Signs, compresses, and encrypts the specified file to the output location
+     * specified by the second file. If a file already exists in the output
+     * file's location, it will be deleted. If an exception occurs during
+     * this processing, the output file will be deleted.
+     * <p>
+     * Use the {@link #setSigningAlgorithm}, {@link #setCompressionAlgorithm},
+     * and {@link #setEncryptionAlgorithm} before running this method
+     * to turn off or adjust signing, compression, or encryption.
+     * @param plaintext {@link Path} of file to encrypt.
+     * @param ciphertext {@link Path} location of output ciphertext file.
+     * @return The {@link FileMetadata} of the encrypted plaintext
+     * @throws IOException if an IO error occurs reading from or writing to
+     * the underlying input or output streams.
+     * @throws PGPException if no encryption keys and no passphrase for
+     * symmetric encryption were supplied (and the message is not unencrypted),
+     * or if no signing keys were supplied (and the message is not unsigned).
+     * @throws PassphraseException if an incorrect passphrase was supplied
+     * for one of the signing keys.
+     */
+    public FileMetadata encrypt(Path plaintext, Path ciphertext)
+            throws IOException, PGPException {
+        if (Objects.equals(plaintext.toAbsolutePath(), ciphertext.toAbsolutePath()))
             throw new IOException("cannot encrypt " + plaintext +
                 " over itself");
 
         // delete old output file
-        if (ciphertext.delete()) {
+        if (Files.deleteIfExists(ciphertext)) {
             log.debug("encrypt({}) deleted {}", plaintext, ciphertext);
         }
 
         FileMetadata meta = new FileMetadata(plaintext);
         long inputSize = meta.getLength();
-        try (InputStream sourceStream = new FileInputStream(plaintext);
+        try (InputStream sourceStream = Files.newInputStream(plaintext);
              InputStream input = wrapSourceInputStream(sourceStream, inputSize);
-             OutputStream targetStream = new FileOutputStream(ciphertext);
+             OutputStream targetStream = Files.newOutputStream(ciphertext);
              OutputStream output = wrapTargetOutputStream(targetStream, inputSize)) {
-            encrypt(input, output, meta);
+            return encrypt(input, output, meta);
         } catch (Exception e) {
             // delete output file if anything went wrong
-            if (!ciphertext.delete()) {
-                log.warn("encrypt({}) cannot clean up {}", plaintext, ciphertext);
+            try {
+                if (Files.deleteIfExists(ciphertext)) {
+                    log.debug("encrypt({}) cleaned up {}", plaintext, ciphertext);
+                }
+            } catch(IOException ioe) {
+                log.warn("encrypt({}) cannot clean up {}", plaintext, ciphertext, ioe);
             }
+
             throw e;
         }
     }
@@ -661,8 +693,10 @@ public class Encryptor {
      * Use the {@link #setSigningAlgorithm}, {@link #setCompressionAlgorithm},
      * and {@link #setEncryptionAlgorithm} before running this method
      * to turn off or adjust signing, compression, or encryption.
-     * @param plaintext Content to encrypt.
-     * @param ciphertext PGP message, in binary or ASCII Armor format.
+     * @param plaintext {@link InputStream} content to encrypt.
+     * @param ciphertext {@link OutputStream) for PGP message, in binary or ASCII Armor format.
+     * @return A {@link FileMetadata} placeholder that contains at the very
+     * least the number of bytes processed from the plaintext stream
      * @throws IOException if an IO error occurs reading from or writing to
      * the underlying input or output streams.
      * @throws PGPException if no encryption keys and no passphrase for
@@ -671,9 +705,9 @@ public class Encryptor {
      * @throws PassphraseException if an incorrect passphrase was supplied
      * for one of the signing keys.
      */
-    public void encrypt(InputStream plaintext, OutputStream ciphertext)
+    public FileMetadata encrypt(InputStream plaintext, OutputStream ciphertext)
             throws IOException, PGPException {
-        encrypt(plaintext, ciphertext, null);
+        return encrypt(plaintext, ciphertext, null);
     }
 
     /**
@@ -686,7 +720,8 @@ public class Encryptor {
      * to turn off or adjust signing, compression, or encryption.
      * @param plaintext Content to encrypt.
      * @param ciphertext PGP message, in binary or ASCII Armor format.
-     * @param meta Metadata of original file.
+     * @param meta Metadata of original file that contains at the very
+     * least the number of bytes processed from the plaintext stream
      * @throws IOException if an IO error occurs reading from or writing to
      * the underlying input or output streams.
      * @throws PGPException if no encryption keys and no passphrase for
@@ -695,17 +730,24 @@ public class Encryptor {
      * @throws PassphraseException if an incorrect passphrase was supplied
      * for one of the signing keys.
      */
-    public void encrypt(
+    public FileMetadata encrypt(
         InputStream plaintext, OutputStream ciphertext, FileMetadata meta)
             throws IOException, PGPException {
         if (meta == null) {
             meta = new FileMetadata();
         }
 
+        long inputSize;
         try (OutputStream targetStream = prepareCiphertextOutputStream(ciphertext, meta, false)) {
             // copy plaintext bytes into encryption pipeline
-            copy(plaintext, targetStream, null /* signer is inside the target */, meta);
+            inputSize = copy(plaintext, targetStream, null /* signer is inside the target */, meta);
         }
+
+        if (meta.getLength() == 0L) {
+            meta.setLength(inputSize);
+        }
+
+        return meta;
     }
 
     /**
@@ -1001,18 +1043,29 @@ public class Encryptor {
     /**
      * Copies the content from the specified input stream
      * to the specified output stream.
+     *
+     * @param i The plaintext {@link InputStream}
+     * @param o The prepared target ciphertext {@link OutputStream)
+     * @param s The {@link SigningOutputStream} used to calculate the signature
+     * - {@code null} if no signature provided
+     * @param meta The provided {@link FileMetadata}
+     * @return Total number of processed bytes from input stream
      */
-    protected void copy(
+    protected long copy(
             InputStream i, OutputStream o, SigningOutputStream s, FileMetadata meta)
                 throws IOException, PGPException {
         byte[] buf = getCopyBuffer(meta);
         int len = i.read(buf);
+        long inputSize = 0L;
         while (len != -1) {
             if (s != null)
                 s.update(buf, 0, len);
             o.write(buf, 0, len);
+            inputSize += len;
             len = i.read(buf);
         }
+
+        return inputSize;
     }
 
     /**

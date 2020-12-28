@@ -1,7 +1,13 @@
 package org.c02e.jpgpj;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.nio.file.attribute.FileTime;
 import java.util.Date;
+import java.util.Objects;
 
 import org.bouncycastle.openpgp.PGPLiteralData;
 import org.bouncycastle.openpgp.PGPSignature;
@@ -67,6 +73,11 @@ public class FileMetadata {
 
     /** Constructs a metadata object from a file. */
     public FileMetadata(File file) {
+        this((file == null) ? null : file.toPath());
+    }
+
+    /** Constructs a metadata object from a file. */
+    public FileMetadata(Path file) {
         this(DEFAULT_NAME, DEFAULT_FORMAT); // in case file is null
         setFile(file);
     }
@@ -176,7 +187,7 @@ public class FileMetadata {
     /**
      * Keys that signed the file with a verified signature.
      * If a specific userid was included in a key's signature
-     * (such as "Alice &lt;alice@example.com&gt;"),
+     * (such as &quot;Alice &lt;alice@example.com&gt;&quot;),
      * it will be available via the key's {@link Key#getSigningUid} method.
      */
     public Ring getVerified() {
@@ -184,20 +195,42 @@ public class FileMetadata {
     }
 
     /**
-     * @param file Original file from which to extract the
+     * @param file Original {@link File} from which to extract the
      * metadata - ignored if {@code null}
      * Does not extract {@link Format} metadata.
      */
     public void setFile(File file) {
-        if (file == null) return;
-
-        setName(file.getName());
-        setLength(file.length());
-        setLastModified(file.lastModified());
+        setFile((file == null) ? null : file.toPath());
     }
 
-    /** @see #setFile(File) */
+    /**
+     * @param file Original {@link Path} from which to extract the
+     * metadata - ignored if {@code null}
+     * Does not extract {@link Format} metadata.
+     */
+    public void setFile(Path file) {
+        if (file == null) return;
+
+        setName(Objects.toString(file.getFileName()));
+
+        try {
+            BasicFileAttributes attrs = Files.readAttributes(file, BasicFileAttributes.class);
+            setLength((attrs == null) ? 0L : attrs.size());
+
+            FileTime lastModified = (attrs == null) ? null : attrs.lastModifiedTime();
+            setLastModified((lastModified == null) ? 0L : lastModified.toMillis());
+        } catch (IOException e) {
+            // ignored
+        }
+    }
+
+    /** @see #withFile(Path) */
     public FileMetadata withFile(File file) {
+        return withFile((file == null) ? null : file.toPath());
+    }
+
+    /** @see #setFile(Path) */
+    public FileMetadata withFile(Path file) {
         setFile(file);
         return this;
     }

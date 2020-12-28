@@ -3,11 +3,11 @@ package org.c02e.jpgpj;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -275,10 +275,10 @@ public class Decryptor {
      * verifies its signatures. If a file already exists in the output file's
      * location, it will be deleted. If an exception occurs during decryption,
      * the output file will be deleted.
-     * @param ciphertext File containing a PGP message, in binary or
+     * @param ciphertext {@link File} containing a PGP message, in binary or
      * ASCII Armor format.
-     * @param plaintext Location of the file into which to decrypt the message.
-     * @return Metadata of original file, and the list of keys that signed
+     * @param plaintext {@link File} into which to decrypt the message.
+     * @return {@link FileMetadata Metadata} of original file, and the list of keys that signed
      * the message with a verified signature. The original file metadata
      * values are optional, and may be missing or incorrect.
      * @throws IOException if an IO error occurs reading from or writing to
@@ -294,25 +294,58 @@ public class Decryptor {
      */
     public FileMetadata decrypt(File ciphertext, File plaintext)
             throws IOException, PGPException {
-        if (Objects.equals(ciphertext.getAbsoluteFile(), plaintext.getAbsoluteFile()))
+        return decrypt(ciphertext.toPath(), plaintext.toPath());
+    }
+
+    /**
+     * Decrypts the first specified file to the output location specified
+     * by the second file, and (if {@link #isVerificationRequired})
+     * verifies its signatures. If a file already exists in the output file's
+     * location, it will be deleted. If an exception occurs during decryption,
+     * the output file will be deleted.
+     * @param ciphertext {@link Path} to file containing a PGP message, in binary or
+     * ASCII Armor format.
+     * @param plaintext {@link Path} of the file into which to decrypt the message.
+     * @return {@link FileMetadata Metadata}  of original file, and the list of keys that signed
+     * the message with a verified signature. The original file metadata
+     * values are optional, and may be missing or incorrect.
+     * @throws IOException if an IO error occurs reading from or writing to
+     * the underlying input or output streams.
+     * @throws PGPException if the PGP message is not formatted correctly.
+     * @throws PassphraseException if an incorrect passphrase was supplied
+     * for one of the decryption keys, or as the
+     * {@link #getSymmetricPassphrase()}.
+     * @throws DecryptionException if the message was not encrypted for any
+     * of the keys supplied for decryption.
+     * @throws VerificationException if {@link #isVerificationRequired} and
+     * the message was not signed by any of the keys supplied for verification.
+     */
+    public FileMetadata decrypt(Path ciphertext, Path plaintext)
+            throws IOException, PGPException {
+        if (Objects.equals(ciphertext.toAbsolutePath(), plaintext.toAbsolutePath()))
             throw new IOException("cannot decrypt " + ciphertext +
                 " over itself");
 
         // delete old output file
-        if (plaintext.delete()) {
+        if (Files.deleteIfExists(plaintext)) {
             log.debug("decrypt({}) deleted {}", ciphertext, plaintext);
         }
 
-        long inputSize = ciphertext.length();
-        try (InputStream sourceStream = new FileInputStream(ciphertext);
+        long inputSize = Files.size(ciphertext);
+        try (InputStream sourceStream = Files.newInputStream(ciphertext);
              InputStream input = wrapSourceInputStream(sourceStream, inputSize);
-             OutputStream targetStream = new FileOutputStream(plaintext);
+             OutputStream targetStream = Files.newOutputStream(plaintext);
              OutputStream output = wrapTargetOutputStream(targetStream, inputSize)) {
             return decrypt(input, output);
         } catch (Exception e) {
             // delete output file if anything went wrong
-            if (!plaintext.delete()) {
-                log.warn("decrypt({}) cannot clean up {}", ciphertext, plaintext);
+            try {
+                if (Files.deleteIfExists(plaintext)) {
+                    log.debug("decrypt({}) cleaned up {}", ciphertext, plaintext);
+                }
+            } catch (IOException ioe) {
+                log.warn("decrypt({}) cannot clean up {}", ciphertext, plaintext, ioe);
+
             }
             throw e;
         }
