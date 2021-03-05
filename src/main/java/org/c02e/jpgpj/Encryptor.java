@@ -3,7 +3,6 @@ package org.c02e.jpgpj;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -90,6 +89,7 @@ public class Encryptor {
     public static final int DEFAULT_KEY_DERIVATION_ALGORITHM_WORK_FACTOR = 255;
 
     public static final int DEFAULT_MAX_FILE_BUFFER_SIZE = 0x100000;    // 1MB
+    public static final boolean DEFAULT_LOGGING_ENABLED = false;
 
     protected boolean asciiArmored = DEFAULT_ASCII_ARMORED;
     protected boolean removeDefaultArmoredVersionHeader = DEFAULT_REMOVE_DEFAULT_ARMORED_VERSION_HEADER;
@@ -109,6 +109,7 @@ public class Encryptor {
     protected int keyDerivationWorkFactor = DEFAULT_KEY_DERIVATION_ALGORITHM_WORK_FACTOR;
 
     protected int maxFileBufferSize = DEFAULT_MAX_FILE_BUFFER_SIZE;
+    protected boolean loggingEnabled = DEFAULT_LOGGING_ENABLED;
 
     protected Ring ring;
     protected final Logger log = LoggerFactory.getLogger(Encryptor.class.getName());
@@ -569,6 +570,32 @@ public class Encryptor {
     }
 
     /**
+     * @return {@code true} if logging a brief summary of the execution
+     * every time encryption is executed (e.g. file name/path, size, compression
+     * type, etc.). <B>Note:</B> errors/warnings logging are not affected by
+     * this setting
+     */
+    public boolean isLoggingEnabled() {
+        return loggingEnabled;
+    }
+
+    /**
+     * @param enabled {@code true} if should log a brief summary of the execution
+     * every time encryption is executed (e.g. file name/path, size, compression
+     * type, etc.). <B>Note:</B> errors/warnings logging are not affected by
+     * this setting
+     */
+    public void setLoggingEnabled(boolean enabled) {
+        loggingEnabled = enabled;
+    }
+
+    /** @see #setLoggingEnabled(boolean) */
+    public Encryptor withLoggingEnabled(boolean enabled) {
+        setLoggingEnabled(enabled);
+        return this;
+    }
+
+    /**
      * Zeroes-out the cached passphrase for all keys,
      * and releases the extracted private key material for garbage collection.
      */
@@ -636,7 +663,9 @@ public class Encryptor {
 
         // delete old output file
         if (Files.deleteIfExists(ciphertext)) {
-            log.debug("encrypt({}) deleted {}", plaintext, ciphertext);
+            if (isLoggingEnabled()) {
+                log.debug("encrypt({}) deleted {}", plaintext, ciphertext);
+            }
         }
 
         FileMetadata meta = new FileMetadata(plaintext);
@@ -650,7 +679,9 @@ public class Encryptor {
             // delete output file if anything went wrong
             try {
                 if (Files.deleteIfExists(ciphertext)) {
-                    log.debug("encrypt({}) cleaned up {}", plaintext, ciphertext);
+                    if (isLoggingEnabled()) {
+                        log.debug("encrypt({}) cleaned up {}", plaintext, ciphertext);
+                    }
                 }
             } catch(IOException ioe) {
                 log.warn("encrypt({}) cannot clean up {}", plaintext, ciphertext, ioe);
@@ -766,21 +797,52 @@ public class Encryptor {
      */
     public OutputStream prepareCiphertextOutputStream(FileMetadata plainMeta, File ciphertext)
             throws IOException, PGPException {
+        return prepareCiphertextOutputStream(plainMeta, ciphertext.toPath());
+    }
+
+    /**
+     * Builds a wrapper {@link OutputStream} where everything written to the it is
+     * encrypted+compressed+signed according to the encryptor's configuration,
+     * and then written to the specified target file. Closing the wrapper stream finalizes
+     * the encryption and signature, and finishes writing all the wrapper stream's
+     * content to the original stream as well as closing the file stream.
+     *
+     * @param plainMeta The {@link FileMetadata} describing the plaintext file - if
+     * {@code null} an empty ad-hoc instance will be created
+     * @param ciphertext The target {@link Path} for the encrypted data
+     * @return The wrapper stream
+     * @throws IOException If failed to wrap the stream
+     * @throws PGPException If failed to apply a PGP wrapper
+     */
+    public OutputStream prepareCiphertextOutputStream(FileMetadata plainMeta, Path ciphertext)
+            throws IOException, PGPException {
         // delete old output file
-        if (ciphertext.delete()) {
-            log.debug("prepareCiphertextOutputStream - deleted {}", ciphertext);
+        if (Files.deleteIfExists(ciphertext)) {
+            if (isLoggingEnabled()) {
+                log.debug("prepareCiphertextOutputStream({}) - deleted {}",
+                    (plainMeta == null) ? null : plainMeta.getName(), ciphertext);
+            }
         }
 
         OutputStream fileStream = null;
         try {
-            fileStream = new FileOutputStream(ciphertext);
+            fileStream = Files.newOutputStream(ciphertext);
             OutputStream wrapper = prepareCiphertextOutputStream(fileStream, plainMeta, true);
             fileStream = null;  // avoid auto-close at finally clause
             return wrapper;
         } catch(Exception e) {
             // delete output file if anything went wrong
             if (fileStream != null) {
-                ciphertext.delete();
+                String fileName = (plainMeta == null) ? null : plainMeta.getName();
+                try {
+                    if (!Files.deleteIfExists(ciphertext)) {
+                        if (isLoggingEnabled()) {
+                            log.debug("prepareCiphertextOutputStream({}) - cleaned up output file {}", fileName, ciphertext);
+                        }
+                    }
+                } catch (IOException ioe) {
+                    log.warn(fileName + ": Failed to clean up output file " + ciphertext, ioe);
+                }
             }
             throw e;
         } finally {
@@ -959,7 +1021,10 @@ public class Encryptor {
     protected OutputStream encrypt(OutputStream out, FileMetadata meta)
             throws IOException, PGPException {
         EncryptionAlgorithm encAlgo = getEncryptionAlgorithm();
-        log.trace("using encryption algorithm {}", encAlgo);
+        if (isLoggingEnabled()) {
+            log.trace("{}: using encryption algorithm {}",
+                (meta == null) ? null : meta.getName(), encAlgo);
+        }
 
         if (encAlgo == EncryptionAlgorithm.Unencrypted)
             return null;
@@ -972,10 +1037,10 @@ public class Encryptor {
 
         PGPEncryptedDataGenerator generator = buildEncryptor();
         for (Key key : keys)
-            generator.addMethod(buildPublicKeyEncryptor(key));
+            generator.addMethod(buildPublicKeyEncryptor(key, meta));
 
         if (!Util.isEmpty(passChars))
-            generator.addMethod(buildSymmetricKeyEncryptor());
+            generator.addMethod(buildSymmetricKeyEncryptor(meta));
 
         return generator.open(out, getEncryptionBuffer(meta));
     }
@@ -987,7 +1052,10 @@ public class Encryptor {
             throws IOException, PGPException {
         CompressionAlgorithm compAlgo = getCompressionAlgorithm();
         int compLevel = getCompressionLevel();
-        log.trace("using compression algorithm {} - {}", compAlgo, compLevel);
+        if (isLoggingEnabled()) {
+            log.trace("{}: using compression algorithm {} - {}",
+                (meta == null) ? null : meta.getName(), compAlgo, compLevel);
+        }
 
         if (compAlgo == CompressionAlgorithm.Uncompressed ||
                 compLevel < 1 || compLevel > 9)
@@ -1016,8 +1084,11 @@ public class Encryptor {
      */
     protected SigningOutputStream sign(OutputStream out, FileMetadata meta)
             throws IOException, PGPException {
+        String fileName = (meta == null) ? null : meta.getName();
         HashingAlgorithm sigAlg = getSigningAlgorithm();
-        log.trace("using signing algorithm {}", sigAlg);
+        if (isLoggingEnabled()) {
+            log.trace("{}: using signing algorithm {}", fileName, sigAlg);
+        }
 
         if (sigAlg == HashingAlgorithm.Unsigned)
             return null;
@@ -1029,7 +1100,9 @@ public class Encryptor {
             Key key = signers.get(i);
             Subkey subkey = key.getSigning();
             if (!isUsableForSigning(subkey)) {
-                log.info("not using signing key {}", subkey);
+                if (isLoggingEnabled()) {
+                    log.debug("{}: not using signing key {}", fileName, subkey);
+                }
                 signers.remove(i);
             }
         }
@@ -1083,8 +1156,11 @@ public class Encryptor {
      * Builds a PublicKeyKeyEncryptionMethodGenerator
      * for the specified key.
      */
-    protected PublicKeyKeyEncryptionMethodGenerator buildPublicKeyEncryptor(Key key) {
-        log.info("using encryption key {}", key.getEncryption());
+    protected PublicKeyKeyEncryptionMethodGenerator buildPublicKeyEncryptor(Key key, FileMetadata meta) {
+        if (isLoggingEnabled()) {
+            log.info("{}: using encryption key {}",
+                (meta == null) ? null : meta.getName(), key.getEncryption());
+        }
 
         PGPPublicKey publicKey = key.getEncryption().getPublicKey();
         return new BcPublicKeyKeyEncryptionMethodGenerator(publicKey);
@@ -1092,14 +1168,16 @@ public class Encryptor {
 
     /**
      * Builds a PublicKeyKeyEncryptionMethodGenerator
-     * for the specified key.
+     * for the specified key to encrypt the file.
      */
-    protected PBEKeyEncryptionMethodGenerator buildSymmetricKeyEncryptor()
+    protected PBEKeyEncryptionMethodGenerator buildSymmetricKeyEncryptor(FileMetadata meta)
             throws PGPException {
         HashingAlgorithm kdAlgorithm = getKeyDeriviationAlgorithm();
         int workFactor = getKeyDeriviationWorkFactor();
-        log.info("using symmetric encryption with {} hash, work factor {}",
-                kdAlgorithm, workFactor);
+        if (isLoggingEnabled()) {
+            log.info("{}: using symmetric encryption with {} hash, work factor {}",
+                (meta == null) ? null : meta.getName(), kdAlgorithm, workFactor);
+        }
 
         return new BcPBEKeyEncryptionMethodGenerator(
             getSymmetricPassphraseChars(),
@@ -1117,9 +1195,11 @@ public class Encryptor {
      */
     protected PGPSignatureGenerator buildSigner(Key key, FileMetadata meta)
             throws PGPException {
+        String fileName = (meta == null) ? null : meta.getName();
         Subkey subkey = key.getSigning();
-
-        log.info("using signing key {}", subkey);
+        if (isLoggingEnabled()) {
+            log.info("{}: using signing key {}", fileName, key);
+        }
 
         PGPContentSignerBuilder builder = buildSignerBuilder(
             subkey.getPublicKey().getAlgorithm(),
@@ -1131,7 +1211,9 @@ public class Encryptor {
 
         String uid = key.getSigningUid();
         if (!Util.isEmpty(uid)) {
-            log.debug("using signing uid {}", uid);
+            if (isLoggingEnabled()) {
+                log.debug("{}: using signing uid {}", fileName, uid);
+            }
 
             PGPSignatureSubpacketGenerator signer =
                 new PGPSignatureSubpacketGenerator();

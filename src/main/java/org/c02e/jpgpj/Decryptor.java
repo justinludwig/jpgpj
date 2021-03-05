@@ -77,6 +77,7 @@ public class Decryptor {
     public static final int DEFAULT_MAX_FILE_BUFFER_SIZE = 0x100000; // 1MB
     public static final boolean DEFAULT_VERIFICATION_REQUIRED = true;
     public static final int DEFAULT_COPY_FILE_BUFFER_SIZE = 0x4000;
+    public static final boolean DEFAULT_LOGGING_ENABLED = false;
 
     protected boolean verificationRequired = DEFAULT_VERIFICATION_REQUIRED;
     protected char[] symmetricPassphraseChars;
@@ -85,6 +86,7 @@ public class Decryptor {
     protected String symmetricPassphrase;
     protected int maxFileBufferSize = DEFAULT_MAX_FILE_BUFFER_SIZE; //1MB
     protected int copyFileBufferSize = DEFAULT_COPY_FILE_BUFFER_SIZE;
+    protected boolean loggingEnabled = DEFAULT_LOGGING_ENABLED;
     protected Ring ring;
     protected final Logger log = LoggerFactory.getLogger(Decryptor.class.getName());
 
@@ -255,6 +257,32 @@ public class Decryptor {
     }
 
     /**
+     * @return {@code true} if logging a brief summary of the execution
+     * every time decryption is executed (e.g. file name/path, size, compression
+     * type, etc.). <B>Note:</B> errors/warnings logging are not affected by
+     * this setting
+     */
+    public boolean isLoggingEnabled() {
+        return loggingEnabled;
+    }
+
+    /**
+     * @param enabled {@code true} if should log a brief summary of the execution
+     * every time decryption is executed (e.g. file name/path, size, compression
+     * type, etc.). <B>Note:</B> errors/warnings logging are not affected by
+     * this setting
+     */
+    public void setLoggingEnabled(boolean enabled) {
+        loggingEnabled = enabled;
+    }
+
+    /** @see #setLoggingEnabled(boolean) */
+    public Decryptor withLoggingEnabled(boolean enabled) {
+        setLoggingEnabled(enabled);
+        return this;
+    }
+
+    /**
      * Zeroes-out the cached passphrase for all keys,
      * and releases the extracted private key material for garbage collection.
      */
@@ -328,7 +356,9 @@ public class Decryptor {
 
         // delete old output file
         if (Files.deleteIfExists(plaintext)) {
-            log.debug("decrypt({}) deleted {}", ciphertext, plaintext);
+            if (isLoggingEnabled()) {
+                log.debug("decrypt({}) deleted {}", ciphertext, plaintext);
+            }
         }
 
         long inputSize = Files.size(ciphertext);
@@ -341,7 +371,9 @@ public class Decryptor {
             // delete output file if anything went wrong
             try {
                 if (Files.deleteIfExists(plaintext)) {
-                    log.debug("decrypt({}) cleaned up {}", ciphertext, plaintext);
+                    if (isLoggingEnabled()) {
+                        log.debug("decrypt({}) cleaned up {}", ciphertext, plaintext);
+                    }
                 }
             } catch (IOException ioe) {
                 log.warn("decrypt({}) cannot clean up {}", ciphertext, plaintext, ioe);
@@ -458,10 +490,13 @@ public class Decryptor {
         List<FileMetadata> meta = new ArrayList<FileMetadata>();
         List<Verifier> verifiers = new ArrayList<Verifier>();
 
+        boolean logUnpacking = isLoggingEnabled();
         while (packets.hasNext()) {
             Object packet = packets.next();
 
-            log.trace("unpack {}", packet.getClass());
+            if (logUnpacking) {
+                log.trace("unpack {}", packet.getClass());
+            }
 
             if (packet instanceof PGPMarker) {
                 // no-op
@@ -500,7 +535,10 @@ public class Decryptor {
                 throw new PGPException("unexpected packet: " + packet.getClass());
             }
         }
-        log.trace("unpacked all");
+
+        if (logUnpacking) {
+            log.trace("unpacked all");
+        }
 
         // fail if verification required and any signature is bad
         verify(verifiers, meta);
@@ -550,6 +588,7 @@ public class Decryptor {
         PGPPBEEncryptedData pbe = null;
 
         Ring decryptRing = getRing();
+        boolean logDecryption = isLoggingEnabled();
         while (data.hasNext()) {
             Object o = data.next();
 
@@ -565,11 +604,15 @@ public class Decryptor {
                     if (isUsableForDecryption(subkey))
                         return decrypt(pke, subkey);
 
-                    log.info("not using decryption key {}", subkey);
+                    if (logDecryption) {
+                        log.info("not using decryption key {}", subkey);
+                    }
                 }
 
                 if (Util.isEmpty(keys))
-                    log.info("not found decryption key {}", Util.formatKeyId(id));
+                    if (logDecryption) {
+                        log.info("not found decryption key {}", Util.formatKeyId(id));
+                    }
 
             } else if (o instanceof PGPPBEEncryptedData) {
                 // try first symmetric-key option at the end
@@ -588,8 +631,9 @@ public class Decryptor {
             throws IOException, PGPException {
         if (data == null || subkey == null)
             throw new DecryptionException("no suitable decryption key found");
-
-        log.info("using decryption key {}", subkey);
+        if (isLoggingEnabled()) {
+            log.info("using decryption key {}", subkey);
+        }
 
         return data.getDataStream(buildPublicKeyDecryptor(subkey));
     }
@@ -658,8 +702,9 @@ public class Decryptor {
             if (!verifier.verify())
                 throw new VerificationException(
                         "bad signature for key " + verifier.key);
-            else
+            if (isLoggingEnabled()) {
                 log.debug("good signature for key {}", verifier.key);
+            }
 
             Key key = verifier.getSignedBy();
             for (FileMetadata file : meta) {
@@ -818,24 +863,31 @@ public class Decryptor {
          * Finds verification subkey by ID in this Decryptor's ring, or null.
          * If found, also sets "key" field to subkey's key.
          */
-        private Subkey findVerificationSubkey(Long id) {
+        protected Subkey findVerificationSubkey(Long id) {
             Ring decryptorRing = getRing();
             List<Key> keys = decryptorRing.findAll(id);
-
+            boolean logVerification = isLoggingEnabled();
             for (Key key: keys) {
                 Subkey subkey = key.findById(id);
 
                 if (subkey != null && subkey.isForVerification()) {
-                    log.info("using verification key {}", subkey);
+                    if (logVerification) {
+                        log.info("using verification key {} for ID={}", subkey, Util.formatKeyId(id));
+                    }
                     this.key = key;
                     return subkey;
                 }
 
-                log.info("not using verification key {}", subkey);
+                if (logVerification) {
+                    log.info("not using verification key {} for ID={}", subkey, Util.formatKeyId(id));
+                }
             }
 
-            if (Util.isEmpty(keys))
-                log.info("not found verification key {}", Util.formatKeyId(id));
+            if (Util.isEmpty(keys)) {
+                if (logVerification) {
+                    log.info("not found verification key {}", Util.formatKeyId(id));
+                }
+            }
 
             return null;
         }
