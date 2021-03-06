@@ -241,22 +241,24 @@ class EncryptorSpec extends Specification {
         def expected = "This is a test of bytes encoding"
         def encryptor = new Encryptor(new Ring(stream('test-key-1.asc')))
         encryptor.ring.keys*.passphrase = 'c02e'
-        encryptor.encryptBytes expected.getBytes(), "bytesTest", cipherOut
+        def encMeta = encryptor.encryptBytes expected.getBytes(), "bytesTest", cipherOut
 
         def decryptor = new Decryptor(new Ring(stream('test-key-1.asc')))
         decryptor.ring.keys*.passphrase = 'c02e'
-        def meta = decryptor.decrypt(cipherIn, plainOut)
+        def decMeta = decryptor.decrypt(cipherIn, plainOut)
 
         then:
         plainOut.toString() == expected
 
-        meta.name == "bytesTest"
-        meta.length == expected.length()
-        meta.format == FileMetadata.Format.BINARY
+        decMeta.name == "bytesTest"
+        decMeta.length == expected.length()
+        decMeta.format == FileMetadata.Format.BINARY
+        
+        decMeta == encMeta
 
-        meta.verified
-        meta.verified.keys.uids == [['Test Key 1 <test-key-1@c02e.org>']]
-        meta.verified.keys.signingUid == ['Test Key 1 <test-key-1@c02e.org>']
+        decMeta.verified
+        decMeta.verified.keys.uids == [['Test Key 1 <test-key-1@c02e.org>']]
+        decMeta.verified.keys.signingUid == ['Test Key 1 <test-key-1@c02e.org>']
     }
     
     def "encrypt and sign with ascii armor"() {

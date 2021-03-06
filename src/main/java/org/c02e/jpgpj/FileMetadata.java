@@ -8,6 +8,7 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileTime;
 import java.util.Date;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 
 import org.bouncycastle.openpgp.PGPLiteralData;
 import org.bouncycastle.openpgp.PGPSignature;
@@ -242,6 +243,34 @@ public class FileMetadata {
     public int getSignatureType() {
         return format == Format.TEXT || format == Format.UTF8 ?
             PGPSignature.CANONICAL_TEXT_DOCUMENT : PGPSignature.BINARY_DOCUMENT;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(getName(), getFormat())
+             + 31 * Long.hashCode(getLength())
+             + 37 * Long.hashCode(TimeUnit.MILLISECONDS.toSeconds(getLastModified()))
+             ;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (o == null) {
+            return false;
+        }
+        if (o == this) {
+            return true;
+        }
+        if (getClass() != o.getClass()) {
+            return false;
+        }
+
+        FileMetadata that = (FileMetadata) o;
+        return Objects.equals(getName(), that.getName())
+            && Objects.equals(getFormat(), that.getFormat())
+            && (getLength() == that.getLength())
+            && (TimeUnit.MILLISECONDS.toSeconds(getLastModified()) == TimeUnit.MILLISECONDS.toSeconds(that.getLastModified()))
+            ;
     }
 
     @Override
