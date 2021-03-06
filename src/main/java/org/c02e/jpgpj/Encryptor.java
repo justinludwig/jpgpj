@@ -2,6 +2,7 @@ package org.c02e.jpgpj;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FilterOutputStream;
 import java.io.IOException;
@@ -707,13 +708,97 @@ public class Encryptor {
      * @param targetStream Original target (ciphertext) {@link OutputStream}
      * @param inputSize Expected input (plaintext) size
      * @return A wrapper buffered stream optimized for the input size according to
-     * the current encryptor settings
+     * the current encryptor settings.
      * @throws IOException If failed to generate the wrapper
      * @see #estimateOutFileBufferSize(long)
      */
     public OutputStream wrapTargetOutputStream(OutputStream targetStream, long inputSize) throws IOException {
         int bestFileBufferSize = estimateOutFileBufferSize(inputSize);
         return new BufferedOutputStream(targetStream, bestFileBufferSize);
+    }
+
+    /**
+     * @param data Data buffer to be used as plaintext input
+     * @param name The &quot;file&quot; name to report as being encrypted - can be {@code null}
+     * @param ciphertext Target ciphertext {@link File}
+     * @return The {@link FileMetadata} of the encrypted plaintext
+     * @throws IOException if an IO error occurs reading from or writing to
+     * the underlying input or output streams.
+     * @throws PGPException if no encryption keys and no passphrase for
+     * symmetric encryption were supplied (and the message is not unencrypted),
+     * or if no signing keys were supplied (and the message is not unsigned).
+     * @throws PassphraseException if an incorrect passphrase was supplied
+     * for one of the signing keys.
+     */
+    public FileMetadata encryptBytes(byte[] data, String name, File ciphertext)
+            throws IOException, PGPException {
+        return encryptBytes(data, name, ciphertext.toPath());
+    }
+
+    /**
+     * @param data Data buffer to be used as plaintext input
+     * @param name The &quot;file&quot; name to report as being encrypted - can be {@code null}
+     * @param ciphertext Target ciphertext {@link Path}
+     * @return The {@link FileMetadata} of the encrypted plaintext
+     * @throws IOException if an IO error occurs reading from or writing to
+     * the underlying input or output streams.
+     * @throws PGPException if no encryption keys and no passphrase for
+     * symmetric encryption were supplied (and the message is not unencrypted),
+     * or if no signing keys were supplied (and the message is not unsigned).
+     * @throws PassphraseException if an incorrect passphrase was supplied
+     * for one of the signing keys.
+     */
+    public FileMetadata encryptBytes(byte[] data, String name, Path ciphertext)
+            throws IOException, PGPException {
+        // delete old output file
+        if (Files.deleteIfExists(ciphertext)) {
+            if (isLoggingEnabled()) {
+                log.debug("encryptBytes({}) deleted {}", name, ciphertext);
+            }
+        }
+
+        try (OutputStream targetStream = Files.newOutputStream(ciphertext);
+             OutputStream output = wrapTargetOutputStream(targetStream, data.length)) {
+            return encryptBytes(data, name, output);
+        } catch (Exception e) {
+            // delete output file if anything went wrong
+            try {
+                if (Files.deleteIfExists(ciphertext)) {
+                    if (isLoggingEnabled()) {
+                        log.debug("encryptBytes({}) cleaned up {}", name, ciphertext);
+                    }
+                }
+            } catch(IOException ioe) {
+                log.warn("encryptBytes({}) cannot clean up {}", name, ciphertext, ioe);
+            }
+
+            throw e;
+        }
+    }
+
+    /**
+     * @param data Data buffer to be used as plaintext input
+     * @param name The &quot;file&quot; name to report as being encrypted - can be {@code null}
+     * @param ciphertext Target ciphertext {@link OutputStream}
+     * @return The {@link FileMetadata} of the encrypted plaintext
+     * @throws IOException if an IO error occurs reading from or writing to
+     * the underlying input or output streams.
+     * @throws PGPException if no encryption keys and no passphrase for
+     * symmetric encryption were supplied (and the message is not unencrypted),
+     * or if no signing keys were supplied (and the message is not unsigned).
+     * @throws PassphraseException if an incorrect passphrase was supplied
+     * for one of the signing keys.
+     */
+    public FileMetadata encryptBytes(byte[] data, String name, OutputStream ciphertext)
+            throws IOException, PGPException {
+        FileMetadata meta = new FileMetadata();
+        meta.setName(name);
+        meta.setLength(data.length);
+        meta.setLastModified(System.currentTimeMillis());
+
+        try (InputStream input = new ByteArrayInputStream(data)) {
+            return encrypt(input, ciphertext, meta);
+        }
     }
 
     /**

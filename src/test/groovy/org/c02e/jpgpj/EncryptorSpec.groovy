@@ -236,6 +236,29 @@ class EncryptorSpec extends Specification {
         meta.verified.keys.signingUid == ['Test Key 1 <test-key-1@c02e.org>']
     }
 
+    def "encrypt bytes"() {
+        when:
+        def expected = "This is a test of bytes encoding"
+        def encryptor = new Encryptor(new Ring(stream('test-key-1.asc')))
+        encryptor.ring.keys*.passphrase = 'c02e'
+        encryptor.encryptBytes expected.getBytes(), "bytesTest", cipherOut
+
+        def decryptor = new Decryptor(new Ring(stream('test-key-1.asc')))
+        decryptor.ring.keys*.passphrase = 'c02e'
+        def meta = decryptor.decrypt(cipherIn, plainOut)
+
+        then:
+        plainOut.toString() == expected
+
+        meta.name == "bytesTest"
+        meta.length == expected.length()
+        meta.format == FileMetadata.Format.BINARY
+
+        meta.verified
+        meta.verified.keys.uids == [['Test Key 1 <test-key-1@c02e.org>']]
+        meta.verified.keys.signingUid == ['Test Key 1 <test-key-1@c02e.org>']
+    }
+    
     def "encrypt and sign with ascii armor"() {
         when:
         def encryptor = new Encryptor(new Ring(stream('test-key-1.asc')))
@@ -381,6 +404,7 @@ hQEMAyne546XDHBhAQ...
 
         meta.verified
     }
+
     def "encrypt and sign zero-byte file"() {
         when:
         def encryptor = new Encryptor(new Key(file('test-key-1.asc'), 'c02e'))
@@ -913,8 +937,12 @@ hQEMAyne546XDHBhAQ...
         'test\n'
     }
 
+    protected getPlainBytes() {
+        plainText.bytes
+    }
+    
     protected getPlainIn() {
-        new ByteArrayInputStream(plainText.bytes)
+        new ByteArrayInputStream(plainBytes)
     }
 
     protected getCipherIn() {
