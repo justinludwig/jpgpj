@@ -28,7 +28,7 @@ public class FileMetadata {
         /** UTF-8 encoded text with CRLF line-endings. */
         UTF8('u');
 
-        protected char code;
+        private final char code;
 
         Format(char code) {
             this.code = code;
@@ -51,11 +51,11 @@ public class FileMetadata {
     public static final String DEFAULT_NAME = "";
     public static final Format DEFAULT_FORMAT = Format.BINARY;
 
-    protected String name;
-    protected Format format;
-    protected long length;
-    protected long lastModified;
-    protected Ring verified = new Ring();
+    private String name;
+    private Format format;
+    private long length;
+    private long lastModified;
+    private final Ring verified = new Ring();
 
     /** Constructs a metadata object with default values. */
     public FileMetadata() {
