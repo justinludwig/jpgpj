@@ -810,7 +810,7 @@ public class Encryptor {
      * and {@link #setEncryptionAlgorithm} before running this method
      * to turn off or adjust signing, compression, or encryption.
      * @param plaintext {@link InputStream} content to encrypt.
-     * @param ciphertext {@link OutputStream) for PGP message, in binary or ASCII Armor format.
+     * @param ciphertext {@link OutputStream} for PGP message, in binary or ASCII Armor format.
      * @return A {@link FileMetadata} placeholder that contains at the very
      * least the number of bytes processed from the plaintext stream
      * @throws IOException if an IO error occurs reading from or writing to
