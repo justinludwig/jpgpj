@@ -13,7 +13,7 @@ repositories {
 }
 
 dependencies {
-    compile 'org.bouncycastle:bcpg-jdk15on:1.63'
+    compile 'org.bouncycastle:bcpg-jdk15on:1.69'
     compile 'org.slf4j:slf4j-api:1.7.32'
     testCompile 'org.codehaus.groovy:groovy-all:2.5.8'
     testCompile 'org.slf4j:slf4j-simple:1.7.32'
