@@ -77,7 +77,7 @@ import org.slf4j.LoggerFactory;
  *     --output path/to/ciphertext.txt.gpg path/to/plaintext.txt
  * }</pre>
  */
-public class Encryptor {
+public class Encryptor implements Cloneable {
     public static final int MAX_ENCRYPT_COPY_BUFFER_SIZE = 0x10000;
     public static final boolean DEFAULT_ASCII_ARMORED = false;
     public static final boolean DEFAULT_REMOVE_DEFAULT_ARMORED_VERSION_HEADER = false;
@@ -94,7 +94,7 @@ public class Encryptor {
 
     protected boolean asciiArmored = DEFAULT_ASCII_ARMORED;
     protected boolean removeDefaultArmoredVersionHeader = DEFAULT_REMOVE_DEFAULT_ARMORED_VERSION_HEADER;
-    protected final Map<String, String> armoredHeaders = new HashMap<>();
+    protected Map<String, String> armoredHeaders = new HashMap<>();
     protected EncryptedAsciiArmorHeadersCallback armorHeadersCallback;
 
     protected int compressionLevel = DEFAULT_COMPRESSION_LEVEL;
@@ -1433,6 +1433,30 @@ public class Encryptor {
         }
 
         return (int) Math.min(outFileSize, maxBufSize);
+    }
+
+    @Override
+    public Encryptor clone() {
+        try {
+            Encryptor other = getClass().cast(super.clone());
+            char[] thisChars = getSymmetricPassphraseChars();
+            // don't call setSymmetricPassphraseChars since it checks if different password provided
+            other.symmetricPassphraseChars = (thisChars == null) ? null : thisChars.clone();
+
+            Ring thisRing = getRing();
+            Ring clonedRing = (thisRing == null) ? null : thisRing.clone();
+            other.setRing(clonedRing);
+
+            Map<String, String> hdrsMap = getArmoredHeaders();
+            other.armoredHeaders = new HashMap<>();
+            if ((hdrsMap != null) && (hdrsMap.size() > 0)) {
+                other.armoredHeaders.putAll(hdrsMap);
+            }
+
+            return other;
+        } catch (CloneNotSupportedException e) {
+            throw new UnsupportedOperationException("Unexpected clone failure for " + this);
+        }
     }
 
     protected class SigningOutputStream extends FilterOutputStream {
