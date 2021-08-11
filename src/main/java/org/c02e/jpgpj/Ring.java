@@ -47,7 +47,7 @@ import org.c02e.jpgpj.util.Util;
  * needed to unlock the subkey (which is needed to use the subkey for
  * decryption and signing).
  */
-public class Ring {
+public class Ring implements Cloneable {
     protected List<Key> keys;
 
     /** Constructs a new empty ring. */
@@ -87,6 +87,18 @@ public class Ring {
     public Ring(InputStream stream) throws IOException, PGPException {
         this();
         load(stream);
+    }
+
+    @Override
+    public Ring clone() {
+        try {
+            Ring other = getClass().cast(super.clone());
+            List<Key> thisKeys = getKeys();
+            other.setKeys((thisKeys == null) ? null : new ArrayList<>(thisKeys));
+            return other;
+        } catch (CloneNotSupportedException e) {
+            throw new UnsupportedOperationException("Unexpected clone failure for " + this);
+        }
     }
 
     /**
