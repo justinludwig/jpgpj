@@ -73,7 +73,7 @@ import org.slf4j.LoggerFactory;
  * gpg --decrypt --output path/back-to/plaintext.txt path/to/ciphertext.txt.gpg
  * }</pre>
  */
-public class Decryptor {
+public class Decryptor implements Cloneable {
     public static final int DEFAULT_MAX_FILE_BUFFER_SIZE = 0x100000; // 1MB
     public static final boolean DEFAULT_VERIFICATION_REQUIRED = true;
     public static final int DEFAULT_COPY_FILE_BUFFER_SIZE = 0x4000;
@@ -778,6 +778,23 @@ public class Decryptor {
      */
     public byte[] getCopyBuffer() {
         return new byte[getCopyFileBufferSize()];
+    }
+
+    @Override
+    public Decryptor clone() {
+        try {
+            Decryptor other = getClass().cast(super.clone());
+            char[] thisChars = getSymmetricPassphraseChars();
+            // don't call setSymmetricPassphraseChars since it checks if different password provided
+            other.symmetricPassphraseChars = (thisChars == null) ? null : thisChars.clone();
+
+            Ring thisRing = getRing();
+            Ring clonedRing = (thisRing == null) ? null : thisRing.clone();
+            other.setRing(clonedRing);
+            return other;
+        } catch (CloneNotSupportedException e) {
+            throw new UnsupportedOperationException("Unexpected clone failure for " + this);
+        }
     }
 
     /**
