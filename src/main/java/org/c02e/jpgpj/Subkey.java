@@ -61,7 +61,7 @@ import org.c02e.jpgpj.util.Util;
  * (however, the private key material will not be zeroed-out; also, the
  * passphrase will not be zeroed-out if it was set via {@link #setPassphrase}).
  */
-public class Subkey {
+public class Subkey implements Cloneable {
     private static final char[] NO_PASSPHRASE = Key.NO_PASSPHRASE.toCharArray();
     private static final char[] EMPTY_PASSPHRASE = new char[0];
 
@@ -116,6 +116,18 @@ public class Subkey {
             b.append(uid);
         }
         return b.toString();
+    }
+
+    @Override
+    public Subkey clone() {
+        try {
+            Subkey other = getClass().cast(super.clone());
+            // Do not use setPassphrasesChars since it checks if different password provided
+            other.passphraseChars = (this.passphraseChars == null) ? null : this.passphraseChars.clone();
+            return other;
+        } catch (CloneNotSupportedException e) {
+            throw new UnsupportedOperationException("Unexpected clone failure for " + this);
+        }
     }
 
     /** True if the subkey should be used for signing messages. */

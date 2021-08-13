@@ -12,6 +12,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import org.bouncycastle.bcpg.ArmoredInputStream;
 import org.bouncycastle.gpg.keybox.PublicKeyRingBlob;
@@ -94,7 +95,7 @@ public class Ring implements Cloneable {
         try {
             Ring other = getClass().cast(super.clone());
             List<Key> thisKeys = getKeys();
-            other.setKeys((thisKeys == null) ? null : new ArrayList<>(thisKeys));
+            other.setKeys((thisKeys == null) ? null : thisKeys.stream().map(Key::clone).collect(Collectors.toList()));
             return other;
         } catch (CloneNotSupportedException e) {
             throw new UnsupportedOperationException("Unexpected clone failure for " + this);

@@ -25,8 +25,19 @@ public class RingTest extends Assert {
         assertNotSame("Cloned instance reference", original, cloned);
         assertNotSame("Cloned keys list reference", orgKeys, clnKeys);
         assertEquals("Cloned keys count", orgKeys.size(), clnKeys.size());
-        for (int index = 0; index < orgKeys.size(); index++) {
-            assertSame("Mismatched ring key reference at index #" + index, orgKeys.get(index), clnKeys.get(index));
+
+        for (int keyIndex = 0; keyIndex < orgKeys.size(); keyIndex++) {
+            Key oKey = orgKeys.get(keyIndex);
+            Key cKey = clnKeys.get(keyIndex);
+            assertNotSame("Uncloned ring key reference at index #" + keyIndex, oKey, cKey);
+            List<Subkey> orgSubs = oKey.getSubkeys();
+            List<Subkey> clnSubs = cKey.getSubkeys();
+            assertNotSame("Cloned sub-keys list reference for key #" + keyIndex, orgSubs, clnSubs);
+            assertEquals("Cloned sub-keys count for key #" + keyIndex, orgSubs.size(), clnSubs.size());
+
+            for (int subIndex = 0; subIndex < orgSubs.size(); subIndex++) {
+                assertNotSame("Clone sub-key #" + subIndex + " reference of key #" + keyIndex, orgSubs.get(subIndex), clnSubs.get(subIndex));
+            }
         }
     }
 

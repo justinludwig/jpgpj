@@ -1,12 +1,14 @@
 package org.c02e.jpgpj;
 
 import java.io.File;
-import java.io.InputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+
 import org.bouncycastle.openpgp.PGPException;
 import org.c02e.jpgpj.util.Util;
 
@@ -53,7 +55,7 @@ import org.c02e.jpgpj.util.Util;
  * may ignore this setting, and display an arbitrary user ID,
  * or all user IDs, as the message signer).
  */
-public class Key {
+public class Key implements Cloneable {
     /** Use this value to set the passphrase of a passphrase-less key. */
     public static String NO_PASSPHRASE = "JPGPJ_NO_PASSPHRASE";
 
@@ -184,6 +186,7 @@ public class Key {
      * Display string for the key, including each subkey's usage flags,
      * short ID, and user IDs.
      */
+    @Override
     public String toString() {
         if (Util.isEmpty(subkeys)) return "key empty";
 
@@ -195,6 +198,18 @@ public class Key {
             b.append(subkey.toString());
         }
         return b.toString();
+    }
+
+    @Override
+    public Key clone() {
+        try {
+            Key other = getClass().cast(super.clone());
+            List<Subkey> thisSubkeys = getSubkeys();
+            other.setSubkeys((thisSubkeys == null) ? null : thisSubkeys.stream().map(Subkey::clone).collect(Collectors.toList()));
+            return other;
+        } catch (CloneNotSupportedException e) {
+            throw new UnsupportedOperationException("Unexpected clone failure for " + this);
+        }
     }
 
     /**
