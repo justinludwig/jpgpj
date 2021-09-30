@@ -14,6 +14,8 @@ repositories {
 
 dependencies {
     compile 'org.bouncycastle:bcpg-jdk15on:1.69'
+//    compile 'org.bouncycastle:bc-fips:1.0.2.1'
+//    compile 'org.bouncycastle:bcpg-fips:1.0.5.1'
     compile 'org.slf4j:slf4j-api:1.7.32'
     testCompile 'junit:junit:4.13.2'
     testCompile 'org.codehaus.groovy:groovy-all:2.5.8'
