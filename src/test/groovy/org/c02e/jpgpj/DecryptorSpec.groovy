@@ -1,11 +1,18 @@
 package org.c02e.jpgpj
 
+import org.bouncycastle.jce.provider.BouncyCastleProvider
+
+import java.security.Security
 import java.text.SimpleDateFormat
 import org.bouncycastle.openpgp.PGPException;
 import spock.lang.Specification
 
 class DecryptorSpec extends Specification {
     def buf = new ByteArrayOutputStream()
+
+    def setupSpec() {
+        Security.addProvider(new BouncyCastleProvider())
+    }
 
     def "decrypt without verification"() {
         when:

@@ -1,5 +1,6 @@
 package org.c02e.jpgpj
 
+import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.c02e.jpgpj.key.KeyForDecryption
 import org.c02e.jpgpj.key.KeyForEncryption
 import org.c02e.jpgpj.key.KeyForSigning
@@ -8,9 +9,15 @@ import org.bouncycastle.openpgp.PGPException
 import spock.lang.Ignore
 import spock.lang.Specification
 
+import java.security.Security
+
 class EncryptorSpec extends Specification {
     def cipherOut = new ByteArrayOutputStream()
     def plainOut = new ByteArrayOutputStream()
+
+    def setupSpec() {
+        Security.addProvider(new BouncyCastleProvider())
+    }
 
     def "literal only"() {
         when:
@@ -285,7 +292,7 @@ class EncryptorSpec extends Specification {
             replaceFirst(/(?m)^(hQEMAyne546XDHBhAQ)[\w\+\/\n]+[\w\+\/]={0,2}/, '$1...').
             replaceFirst(/(?m)^=[\w\+\/]+/, '=1234') == '''
 -----BEGIN PGP MESSAGE-----
-Version: BCPG FIPS 1.0.5.1
+Version: BCPG v1.69
 
 hQEMAyne546XDHBhAQ...
 =1234
