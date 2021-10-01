@@ -775,7 +775,7 @@ public class Decryptor implements Cloneable {
 
         JcePublicKeyDataDecryptorFactoryBuilder jcePublicKeyDataDecryptorFactoryBuilder = new JcePublicKeyDataDecryptorFactoryBuilder();
         if (ProviderService.isProviderNotNull()) {
-            jcePublicKeyDataDecryptorFactoryBuilder.setContentProvider(ProviderService.getProvider());
+            jcePublicKeyDataDecryptorFactoryBuilder.setProvider(ProviderService.getProvider());
         }
 
         return jcePublicKeyDataDecryptorFactoryBuilder.build(privateKey);
