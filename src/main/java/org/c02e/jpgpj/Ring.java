@@ -2,17 +2,14 @@ package org.c02e.jpgpj;
 
 import org.bouncycastle.bcpg.ArmoredInputStream;
 import org.bouncycastle.gpg.keybox.PublicKeyRingBlob;
-import org.bouncycastle.gpg.keybox.jcajce.JcaKeyBoxBuilder;
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPObjectFactory;
 import org.bouncycastle.openpgp.PGPPublicKey;
 import org.bouncycastle.openpgp.PGPPublicKeyRing;
 import org.bouncycastle.openpgp.PGPSecretKey;
 import org.bouncycastle.openpgp.PGPSecretKeyRing;
-import org.bouncycastle.openpgp.operator.jcajce.JcaKeyFingerprintCalculator;
 import org.c02e.jpgpj.util.FileDetection;
 import org.c02e.jpgpj.util.FileDetection.DetectionResult;
-import org.c02e.jpgpj.util.ProviderService;
 import org.c02e.jpgpj.util.Util;
 
 import java.io.BufferedInputStream;
@@ -314,18 +311,10 @@ public class Ring implements Cloneable {
             case ASCII_ARMOR:
                 result.stream = new ArmoredInputStream(result.stream); // fall thru
             case PGP:
-                JcaKeyFingerprintCalculator fingerPrintCalculator = new JcaKeyFingerprintCalculator();
-                if (ProviderService.isProviderNotNull()) {
-                    fingerPrintCalculator.setProvider(ProviderService.getProvider());
-                }
-                return new PGPObjectFactory(result.stream, fingerPrintCalculator).iterator();
+                return new PGPObjectFactory(result.stream, JCAContextHelper.getJcaKeyFingerprintCalculator()).iterator();
             case KEYBOX:
                 try {
-                    JcaKeyBoxBuilder jcaKeyBoxBuilder = new JcaKeyBoxBuilder();
-                    if (ProviderService.isProviderNotNull()) {
-                        jcaKeyBoxBuilder.setProvider(ProviderService.getProvider());
-                    }
-                    return jcaKeyBoxBuilder.build(result.stream).getKeyBlobs().iterator();
+                    return JCAContextHelper.getJcaKeyBoxBuilder().build(result.stream).getKeyBlobs().iterator();
                 } catch (NoSuchProviderException | NoSuchAlgorithmException e) {
                     throw new RuntimeException(e);
                 }

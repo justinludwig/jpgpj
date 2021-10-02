@@ -16,10 +16,6 @@ import org.bouncycastle.openpgp.PGPSecretKey;
 import org.bouncycastle.openpgp.PGPSignature;
 import org.bouncycastle.openpgp.PGPSignatureSubpacketVector;
 import org.bouncycastle.openpgp.operator.PBESecretKeyDecryptor;
-import org.bouncycastle.openpgp.operator.PGPDigestCalculatorProvider;
-import org.bouncycastle.openpgp.operator.jcajce.JcaPGPDigestCalculatorProviderBuilder;
-import org.bouncycastle.openpgp.operator.jcajce.JcePBESecretKeyDecryptorBuilder;
-import org.c02e.jpgpj.util.ProviderService;
 import org.c02e.jpgpj.util.Util;
 
 /**
@@ -497,16 +493,7 @@ public class Subkey implements Cloneable {
             !Arrays.equals(passphraseChars, NO_PASSPHRASE) ?
             passphraseChars : EMPTY_PASSPHRASE;
         try {
-            JcaPGPDigestCalculatorProviderBuilder jcaPGPDigestCalculatorProviderBuilder = new JcaPGPDigestCalculatorProviderBuilder();
-            if (ProviderService.isProviderNotNull()) {
-                jcaPGPDigestCalculatorProviderBuilder.setProvider(ProviderService.getProvider());
-            }
-            PGPDigestCalculatorProvider digestCalculatorProvider = jcaPGPDigestCalculatorProviderBuilder.build();
-            JcePBESecretKeyDecryptorBuilder jcePBESecretKeyDecryptorBuilder = new JcePBESecretKeyDecryptorBuilder(digestCalculatorProvider);
-            if (ProviderService.isProviderNotNull()) {
-                jcePBESecretKeyDecryptorBuilder.setProvider(ProviderService.getProvider());
-            }
-            return jcePBESecretKeyDecryptorBuilder.build(chars);
+            return JCAContextHelper.getJcePBESecretKeyDecryptorBuilder().build(chars);
         } catch (PGPException e) {
             throw new RuntimeException(e);
         }

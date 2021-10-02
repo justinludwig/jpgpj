@@ -35,13 +35,11 @@ import org.bouncycastle.openpgp.operator.PGPContentSignerBuilder;
 import org.bouncycastle.openpgp.operator.PGPDigestCalculatorProvider;
 import org.bouncycastle.openpgp.operator.PublicKeyKeyEncryptionMethodGenerator;
 import org.bouncycastle.openpgp.operator.jcajce.JcaPGPContentSignerBuilder;
-import org.bouncycastle.openpgp.operator.jcajce.JcaPGPDigestCalculatorProviderBuilder;
 import org.bouncycastle.openpgp.operator.jcajce.JcePBEKeyEncryptionMethodGenerator;
 import org.bouncycastle.openpgp.operator.jcajce.JcePGPDataEncryptorBuilder;
 import org.bouncycastle.openpgp.operator.jcajce.JcePublicKeyKeyEncryptionMethodGenerator;
 import org.bouncycastle.util.Strings;
 import org.c02e.jpgpj.FileMetadata.Format;
-import org.c02e.jpgpj.util.ProviderService;
 import org.c02e.jpgpj.util.Util;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1234,11 +1232,7 @@ public class Encryptor implements Cloneable {
      */
     protected PGPEncryptedDataGenerator buildEncryptor() {
         EncryptionAlgorithm encAlgo = getEncryptionAlgorithm();
-        JcePGPDataEncryptorBuilder builder = new JcePGPDataEncryptorBuilder(encAlgo.ordinal());
-        if (ProviderService.isProviderNotNull()) {
-            builder.setProvider(ProviderService.getProvider());
-        }
-
+        JcePGPDataEncryptorBuilder builder = JCAContextHelper.getJcePGPDataEncryptorBuilder(encAlgo.ordinal());
         builder.setWithIntegrityPacket(true);
         return new PGPEncryptedDataGenerator(builder);
     }
@@ -1255,8 +1249,8 @@ public class Encryptor implements Cloneable {
 
         PGPPublicKey publicKey = key.getEncryption().getPublicKey();
         JcePublicKeyKeyEncryptionMethodGenerator generator = new JcePublicKeyKeyEncryptionMethodGenerator(publicKey);
-        if (ProviderService.isProviderNotNull()) {
-            generator.setProvider(ProviderService.getProvider());
+        if (JCAContextHelper.isSecurityProviderNotNull()) {
+            generator.setProvider(JCAContextHelper.getSecurityProvider());
         }
         return generator;
     }
@@ -1274,17 +1268,13 @@ public class Encryptor implements Cloneable {
                 (meta == null) ? null : meta.getName(), kdAlgorithm, workFactor);
         }
 
-        JcaPGPDigestCalculatorProviderBuilder jcaPGPDigestCalculatorProviderBuilder = new JcaPGPDigestCalculatorProviderBuilder();
-        if (ProviderService.isProviderNotNull()) {
-            jcaPGPDigestCalculatorProviderBuilder.setProvider(ProviderService.getProvider());
-        }
-        PGPDigestCalculatorProvider digestCalculatorProvider = jcaPGPDigestCalculatorProviderBuilder.build();
+        PGPDigestCalculatorProvider digestCalculatorProvider = JCAContextHelper.getPGPDigestCalculatorProvider();
         JcePBEKeyEncryptionMethodGenerator jcePBEKeyEncryptionMethodGenerator = new JcePBEKeyEncryptionMethodGenerator(
                 getSymmetricPassphraseChars(),
                 digestCalculatorProvider.get(kdAlgorithm.ordinal()),
                 workFactor);
-        if (ProviderService.isProviderNotNull()) {
-            jcePBEKeyEncryptionMethodGenerator.setProvider(ProviderService.getProvider());
+        if (JCAContextHelper.isSecurityProviderNotNull()) {
+            jcePBEKeyEncryptionMethodGenerator.setProvider(JCAContextHelper.getSecurityProvider());
         }
         return jcePBEKeyEncryptionMethodGenerator;
     }
@@ -1321,7 +1311,7 @@ public class Encryptor implements Cloneable {
 
             PGPSignatureSubpacketGenerator signer =
                 new PGPSignatureSubpacketGenerator();
-            signer.setSignerUserID(false, uid);
+            signer.addSignerUserID(false, uid);
             generator.setHashedSubpackets(signer.generate());
         }
 
@@ -1333,8 +1323,8 @@ public class Encryptor implements Cloneable {
      */
     protected PGPContentSignerBuilder buildSignerBuilder(int keyAlgorithm, int hashAlgorithm) {
         JcaPGPContentSignerBuilder jcaPGPContentSignerBuilder = new JcaPGPContentSignerBuilder(keyAlgorithm, hashAlgorithm);
-        if (ProviderService.isProviderNotNull()) {
-            jcaPGPContentSignerBuilder.setProvider(ProviderService.getProvider());
+        if (JCAContextHelper.isSecurityProviderNotNull()) {
+            jcaPGPContentSignerBuilder.setProvider(JCAContextHelper.getSecurityProvider());
         }
         return jcaPGPContentSignerBuilder;
     }
