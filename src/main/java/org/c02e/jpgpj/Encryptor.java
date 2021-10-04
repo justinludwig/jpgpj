@@ -32,12 +32,8 @@ import org.bouncycastle.openpgp.PGPSignatureGenerator;
 import org.bouncycastle.openpgp.PGPSignatureSubpacketGenerator;
 import org.bouncycastle.openpgp.operator.PBEKeyEncryptionMethodGenerator;
 import org.bouncycastle.openpgp.operator.PGPContentSignerBuilder;
-import org.bouncycastle.openpgp.operator.PGPDigestCalculatorProvider;
+import org.bouncycastle.openpgp.operator.PGPDataEncryptorBuilder;
 import org.bouncycastle.openpgp.operator.PublicKeyKeyEncryptionMethodGenerator;
-import org.bouncycastle.openpgp.operator.jcajce.JcaPGPContentSignerBuilder;
-import org.bouncycastle.openpgp.operator.jcajce.JcePBEKeyEncryptionMethodGenerator;
-import org.bouncycastle.openpgp.operator.jcajce.JcePGPDataEncryptorBuilder;
-import org.bouncycastle.openpgp.operator.jcajce.JcePublicKeyKeyEncryptionMethodGenerator;
 import org.bouncycastle.util.Strings;
 import org.c02e.jpgpj.FileMetadata.Format;
 import org.c02e.jpgpj.util.Util;
@@ -1232,7 +1228,7 @@ public class Encryptor implements Cloneable {
      */
     protected PGPEncryptedDataGenerator buildEncryptor() {
         EncryptionAlgorithm encAlgo = getEncryptionAlgorithm();
-        JcePGPDataEncryptorBuilder builder = JCAContextHelper.getJcePGPDataEncryptorBuilder(encAlgo.ordinal());
+        PGPDataEncryptorBuilder builder = JcaContextHelper.getPGPDataEncryptorBuilder(encAlgo.ordinal());
         builder.setWithIntegrityPacket(true);
         return new PGPEncryptedDataGenerator(builder);
     }
@@ -1248,11 +1244,7 @@ public class Encryptor implements Cloneable {
         }
 
         PGPPublicKey publicKey = key.getEncryption().getPublicKey();
-        JcePublicKeyKeyEncryptionMethodGenerator generator = new JcePublicKeyKeyEncryptionMethodGenerator(publicKey);
-        if (JCAContextHelper.isSecurityProviderNotNull()) {
-            generator.setProvider(JCAContextHelper.getSecurityProvider());
-        }
-        return generator;
+        return JcaContextHelper.getPublicKeyKeyEncryptionMethodGenerator(publicKey);
     }
 
     /**
@@ -1268,15 +1260,7 @@ public class Encryptor implements Cloneable {
                 (meta == null) ? null : meta.getName(), kdAlgorithm, workFactor);
         }
 
-        PGPDigestCalculatorProvider digestCalculatorProvider = JCAContextHelper.getPGPDigestCalculatorProvider();
-        JcePBEKeyEncryptionMethodGenerator jcePBEKeyEncryptionMethodGenerator = new JcePBEKeyEncryptionMethodGenerator(
-                getSymmetricPassphraseChars(),
-                digestCalculatorProvider.get(kdAlgorithm.ordinal()),
-                workFactor);
-        if (JCAContextHelper.isSecurityProviderNotNull()) {
-            jcePBEKeyEncryptionMethodGenerator.setProvider(JCAContextHelper.getSecurityProvider());
-        }
-        return jcePBEKeyEncryptionMethodGenerator;
+        return JcaContextHelper.getPBEKeyEncryptionMethodGenerator(symmetricPassphraseChars, kdAlgorithm, workFactor);
     }
 
     protected boolean isUsableForSigning(Subkey subkey) {
@@ -1322,11 +1306,7 @@ public class Encryptor implements Cloneable {
      * Builds a PGPContentSignerBuilder for the specified algorithms.
      */
     protected PGPContentSignerBuilder buildSignerBuilder(int keyAlgorithm, int hashAlgorithm) {
-        JcaPGPContentSignerBuilder jcaPGPContentSignerBuilder = new JcaPGPContentSignerBuilder(keyAlgorithm, hashAlgorithm);
-        if (JCAContextHelper.isSecurityProviderNotNull()) {
-            jcaPGPContentSignerBuilder.setProvider(JCAContextHelper.getSecurityProvider());
-        }
-        return jcaPGPContentSignerBuilder;
+        return JcaContextHelper.getPGPContentSignerBuilder(keyAlgorithm, hashAlgorithm);
     }
 
     /**

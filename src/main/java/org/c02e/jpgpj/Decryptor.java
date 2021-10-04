@@ -733,14 +733,14 @@ public class Decryptor implements Cloneable {
      * @see PGPObjectFactory
      */
     protected Iterator<?> parse(InputStream stream) {
-        return new PGPObjectFactory(stream, JCAContextHelper.getJcaKeyFingerprintCalculator()).iterator();
+        return new PGPObjectFactory(stream, JcaContextHelper.getJcaKeyFingerprintCalculator()).iterator();
     }
 
     /**
      * Helper for signature verification.
      */
     protected PGPContentVerifierBuilderProvider getVerifierProvider() {
-        return JCAContextHelper.getJcaPGPContentVerifierBuilderProvider();
+        return JcaContextHelper.getPGPContentVerifierBuilderProvider();
     }
 
     protected boolean isUsableForDecryption(Subkey subkey) {
@@ -756,14 +756,14 @@ public class Decryptor implements Cloneable {
         PGPPrivateKey privateKey = subkey.getPrivateKey();
         if (privateKey == null)
             throw new PGPException("no private key for " + subkey);
-        return JCAContextHelper.getJcePublicKeyDataDecryptorFactoryBuilder().build(privateKey);
+        return JcaContextHelper.getJcePublicKeyDataDecryptorFactoryBuilder().build(privateKey);
     }
 
     /**
      * Builds a symmetric-key decryptor for the specified passphrase.
      */
     protected PBEDataDecryptorFactory buildSymmetricKeyDecryptor(char[] passphraseChars) throws PGPException {
-        return JCAContextHelper.getJcePBEDataDecryptorFactoryBuilder().build(passphraseChars);
+        return JcaContextHelper.getJcePBEDataDecryptorFactoryBuilder().build(passphraseChars);
     }
 
     /**

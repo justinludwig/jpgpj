@@ -488,15 +488,11 @@ public class Subkey implements Cloneable {
     /**
      * Builds a secret key decryptor for the specified passphrase.
      */
-    protected PBESecretKeyDecryptor buildDecryptor(char[] passphraseChars) {
+    protected PBESecretKeyDecryptor buildDecryptor(char[] passphraseChars) throws PGPException {
         char[] chars = passphraseChars != null &&
             !Arrays.equals(passphraseChars, NO_PASSPHRASE) ?
             passphraseChars : EMPTY_PASSPHRASE;
-        try {
-            return JCAContextHelper.getJcePBESecretKeyDecryptorBuilder().build(chars);
-        } catch (PGPException e) {
-            throw new RuntimeException(e);
-        }
+        return JcaContextHelper.getJcePBESecretKeyDecryptorBuilder().build(chars);
     }
 
     /**

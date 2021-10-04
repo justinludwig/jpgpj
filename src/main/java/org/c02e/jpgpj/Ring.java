@@ -311,12 +311,12 @@ public class Ring implements Cloneable {
             case ASCII_ARMOR:
                 result.stream = new ArmoredInputStream(result.stream); // fall thru
             case PGP:
-                return new PGPObjectFactory(result.stream, JCAContextHelper.getJcaKeyFingerprintCalculator()).iterator();
+                return new PGPObjectFactory(result.stream, JcaContextHelper.getJcaKeyFingerprintCalculator()).iterator();
             case KEYBOX:
                 try {
-                    return JCAContextHelper.getJcaKeyBoxBuilder().build(result.stream).getKeyBlobs().iterator();
+                    return JcaContextHelper.getJcaKeyBoxBuilder().build(result.stream).getKeyBlobs().iterator();
                 } catch (NoSuchProviderException | NoSuchAlgorithmException e) {
-                    throw new RuntimeException(e);
+                    throw new PGPException(e.getMessage(), e);
                 }
             default:
                 throw new PGPException("not a keyring");
