@@ -1260,7 +1260,7 @@ public class Encryptor implements Cloneable {
                 (meta == null) ? null : meta.getName(), kdAlgorithm, workFactor);
         }
 
-        return JcaContextHelper.getPBEKeyEncryptionMethodGenerator(symmetricPassphraseChars, kdAlgorithm, workFactor);
+        return JcaContextHelper.getPBEKeyEncryptionMethodGenerator(symmetricPassphraseChars, kdAlgorithm.ordinal(), workFactor);
     }
 
     protected boolean isUsableForSigning(Subkey subkey) {

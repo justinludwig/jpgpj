@@ -131,12 +131,12 @@ public class JcaContextHelper {
 
     static PBEKeyEncryptionMethodGenerator getPBEKeyEncryptionMethodGenerator(
             char[] symmetricPassphraseChars,
-            HashingAlgorithm hashingAlgorithm,
+            int hashAlgorithmOrdinal,
             int workFactor) throws PGPException {
         PGPDigestCalculatorProvider digestCalculatorProvider = JcaContextHelper.getPGPDigestCalculatorProvider();
         JcePBEKeyEncryptionMethodGenerator jcePBEKeyEncryptionMethodGenerator = new JcePBEKeyEncryptionMethodGenerator(
                 symmetricPassphraseChars,
-                digestCalculatorProvider.get(hashingAlgorithm.ordinal()),
+                digestCalculatorProvider.get(hashAlgorithmOrdinal),
                 workFactor);
         if (JcaContextHelper.isSecurityProviderNotNull()) {
             jcePBEKeyEncryptionMethodGenerator.setProvider(JcaContextHelper.getSecurityProvider());
