@@ -1,23 +1,15 @@
 package org.c02e.jpgpj.util
 
-import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.c02e.jpgpj.CompressionAlgorithm
 import org.c02e.jpgpj.Encryptor
 import org.c02e.jpgpj.EncryptionAlgorithm
 import org.c02e.jpgpj.HashingAlgorithm
 import org.c02e.jpgpj.Ring
 import spock.lang.Specification
-
-import java.security.Security
-
 import static org.c02e.jpgpj.util.FileDetection.ContainerType.*
 
 class FileDetectionSpec extends Specification {
     def cipherOut = new ByteArrayOutputStream()
-
-    def setupSpec() {
-        Security.addProvider(new BouncyCastleProvider())
-    }
 
     // detectContainer
 

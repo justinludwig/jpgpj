@@ -10,6 +10,8 @@ import org.bouncycastle.openpgp.operator.jcajce.JcePBEDataDecryptorFactoryBuilde
 import org.bouncycastle.openpgp.operator.jcajce.JcePBESecretKeyDecryptorBuilder;
 import org.bouncycastle.openpgp.operator.jcajce.JcePGPDataEncryptorBuilder;
 import org.bouncycastle.openpgp.operator.jcajce.JcePublicKeyDataDecryptorFactoryBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.security.Provider;
 import java.security.Security;
@@ -20,7 +22,8 @@ import java.security.Security;
  * Note: The following class is not thread safe, the security provider should not be changed during PGP operations
  */
 public class JCAContextHelper {
-	private static Provider securityProvider = Security.getProvider("BC");
+	private static final Logger log = LoggerFactory.getLogger(JCAContextHelper.class.getName());
+	private static Provider securityProvider = getBcProviderInstance();
 
 	private JCAContextHelper() {
 	}
@@ -107,5 +110,22 @@ public class JCAContextHelper {
 			builder.setProvider(JCAContextHelper.getSecurityProvider());
 		}
 		return builder;
+	}
+
+	private static Provider getBcProviderInstance() {
+		Provider bc = Security.getProvider("BC");
+		if (bc == null) {
+			try {
+				bc = (Provider) JCAContextHelper.class.getClassLoader()
+						.loadClass("org.bouncycastle.jce.provider.BouncyCastleProvider")
+						.newInstance();
+			} catch (InstantiationException | IllegalAccessException e) {
+				throw new RuntimeException(e);
+			} catch (ClassNotFoundException e) {
+				log.info("org.bouncycastle.jce.provider.BouncyCastleProvider was not found on the classpath, " +
+						"using default security provider");
+			}
+		}
+		return  bc;
 	}
 }
