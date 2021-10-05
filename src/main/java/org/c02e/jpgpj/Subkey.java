@@ -16,8 +16,6 @@ import org.bouncycastle.openpgp.PGPSecretKey;
 import org.bouncycastle.openpgp.PGPSignature;
 import org.bouncycastle.openpgp.PGPSignatureSubpacketVector;
 import org.bouncycastle.openpgp.operator.PBESecretKeyDecryptor;
-import org.bouncycastle.openpgp.operator.bc.BcPBESecretKeyDecryptorBuilder;
-import org.bouncycastle.openpgp.operator.bc.BcPGPDigestCalculatorProvider;
 import org.c02e.jpgpj.util.Util;
 
 /**
@@ -490,12 +488,11 @@ public class Subkey implements Cloneable {
     /**
      * Builds a secret key decryptor for the specified passphrase.
      */
-    protected PBESecretKeyDecryptor buildDecryptor(char[] passphraseChars) {
+    protected PBESecretKeyDecryptor buildDecryptor(char[] passphraseChars) throws PGPException {
         char[] chars = passphraseChars != null &&
             !Arrays.equals(passphraseChars, NO_PASSPHRASE) ?
             passphraseChars : EMPTY_PASSPHRASE;
-        return new BcPBESecretKeyDecryptorBuilder(
-            new BcPGPDigestCalculatorProvider()).build(chars);
+        return JcaContextHelper.getJcePBESecretKeyDecryptorBuilder().build(chars);
     }
 
     /**

@@ -32,14 +32,9 @@ import org.bouncycastle.openpgp.PGPPublicKeyEncryptedData;
 import org.bouncycastle.openpgp.PGPSignature;
 import org.bouncycastle.openpgp.PGPSignatureList;
 import org.bouncycastle.openpgp.PGPSignatureSubpacketVector;
-import org.bouncycastle.openpgp.bc.BcPGPObjectFactory;
 import org.bouncycastle.openpgp.operator.PBEDataDecryptorFactory;
 import org.bouncycastle.openpgp.operator.PGPContentVerifierBuilderProvider;
 import org.bouncycastle.openpgp.operator.PublicKeyDataDecryptorFactory;
-import org.bouncycastle.openpgp.operator.bc.BcPBEDataDecryptorFactory;
-import org.bouncycastle.openpgp.operator.bc.BcPGPContentVerifierBuilderProvider;
-import org.bouncycastle.openpgp.operator.bc.BcPGPDigestCalculatorProvider;
-import org.bouncycastle.openpgp.operator.bc.BcPublicKeyDataDecryptorFactory;
 import org.c02e.jpgpj.util.FileDetection;
 import org.c02e.jpgpj.util.FileDetection.DetectionResult;
 import org.c02e.jpgpj.util.Util;
@@ -737,16 +732,15 @@ public class Decryptor implements Cloneable {
      * Separates stream into PGP packets.
      * @see PGPObjectFactory
      */
-    protected Iterator<?> parse(InputStream stream)
-            throws IOException, PGPException {
-        return new BcPGPObjectFactory(stream).iterator();
+    protected Iterator<?> parse(InputStream stream) {
+        return new PGPObjectFactory(stream, JcaContextHelper.getJcaKeyFingerprintCalculator()).iterator();
     }
 
     /**
      * Helper for signature verification.
      */
     protected PGPContentVerifierBuilderProvider getVerifierProvider() {
-        return new BcPGPContentVerifierBuilderProvider();
+        return JcaContextHelper.getPGPContentVerifierBuilderProvider();
     }
 
     protected boolean isUsableForDecryption(Subkey subkey) {
@@ -762,15 +756,14 @@ public class Decryptor implements Cloneable {
         PGPPrivateKey privateKey = subkey.getPrivateKey();
         if (privateKey == null)
             throw new PGPException("no private key for " + subkey);
-        return new BcPublicKeyDataDecryptorFactory(privateKey);
+        return JcaContextHelper.getJcePublicKeyDataDecryptorFactoryBuilder().build(privateKey);
     }
 
     /**
      * Builds a symmetric-key decryptor for the specified passphrase.
      */
-    protected PBEDataDecryptorFactory buildSymmetricKeyDecryptor(char[] passphraseChars) {
-        return new BcPBEDataDecryptorFactory(passphraseChars,
-            new BcPGPDigestCalculatorProvider());
+    protected PBEDataDecryptorFactory buildSymmetricKeyDecryptor(char[] passphraseChars) throws PGPException {
+        return JcaContextHelper.getJcePBEDataDecryptorFactoryBuilder().build(passphraseChars);
     }
 
     /**

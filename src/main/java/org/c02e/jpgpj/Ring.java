@@ -1,11 +1,25 @@
 package org.c02e.jpgpj;
 
+import org.bouncycastle.bcpg.ArmoredInputStream;
+import org.bouncycastle.gpg.keybox.PublicKeyRingBlob;
+import org.bouncycastle.openpgp.PGPException;
+import org.bouncycastle.openpgp.PGPObjectFactory;
+import org.bouncycastle.openpgp.PGPPublicKey;
+import org.bouncycastle.openpgp.PGPPublicKeyRing;
+import org.bouncycastle.openpgp.PGPSecretKey;
+import org.bouncycastle.openpgp.PGPSecretKeyRing;
+import org.c02e.jpgpj.util.FileDetection;
+import org.c02e.jpgpj.util.FileDetection.DetectionResult;
+import org.c02e.jpgpj.util.Util;
+
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -13,20 +27,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-
-import org.bouncycastle.bcpg.ArmoredInputStream;
-import org.bouncycastle.gpg.keybox.PublicKeyRingBlob;
-import org.bouncycastle.gpg.keybox.bc.BcKeyBox;
-import org.bouncycastle.openpgp.PGPException;
-import org.bouncycastle.openpgp.PGPObjectFactory;
-import org.bouncycastle.openpgp.PGPPublicKey;
-import org.bouncycastle.openpgp.PGPPublicKeyRing;
-import org.bouncycastle.openpgp.PGPSecretKey;
-import org.bouncycastle.openpgp.PGPSecretKeyRing;
-import org.bouncycastle.openpgp.bc.BcPGPObjectFactory;
-import org.c02e.jpgpj.util.FileDetection;
-import org.c02e.jpgpj.util.FileDetection.DetectionResult;
-import org.c02e.jpgpj.util.Util;
 
 /**
  * A collection of {@link Key}s.
@@ -311,9 +311,13 @@ public class Ring implements Cloneable {
             case ASCII_ARMOR:
                 result.stream = new ArmoredInputStream(result.stream); // fall thru
             case PGP:
-                return new BcPGPObjectFactory(result.stream).iterator();
+                return new PGPObjectFactory(result.stream, JcaContextHelper.getJcaKeyFingerprintCalculator()).iterator();
             case KEYBOX:
-                return new BcKeyBox(result.stream).getKeyBlobs().iterator();
+                try {
+                    return JcaContextHelper.getJcaKeyBoxBuilder().build(result.stream).getKeyBlobs().iterator();
+                } catch (NoSuchProviderException | NoSuchAlgorithmException e) {
+                    throw new PGPException(e.getMessage(), e);
+                }
             default:
                 throw new PGPException("not a keyring");
         }

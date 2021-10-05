@@ -8,6 +8,7 @@ build
 # IDE related files
 bin/
 lib/
+out/
 target/
 Servers/
 .metadata/
