@@ -6,7 +6,7 @@ plugins {
 
 group = 'org.c02e.jpgpj'
 archivesBaseName = 'jpgpj'
-version = '1.1'
+version = '1.2'
 description = 'Java Pretty Good Privacy Jig'
 
 repositories {
@@ -52,7 +52,7 @@ uploadArchives {
 
                     println "sign $input ..."
                     def cmd = [
-                        'gpg2', '--yes',
+                        'gpg', '--yes',
                         '-u', 'justin@ldwg.us',
                         '-o', output,
                         '-ab', input,
