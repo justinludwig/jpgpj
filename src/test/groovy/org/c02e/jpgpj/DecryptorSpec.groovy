@@ -1,11 +1,44 @@
 package org.c02e.jpgpj
 
 import java.text.SimpleDateFormat
+import org.c02e.jpgpj.Decryptor.VerificationType
 import org.bouncycastle.openpgp.PGPException;
 import spock.lang.Specification
 
 class DecryptorSpec extends Specification {
     def buf = new ByteArrayOutputStream()
+
+    def "verificationType synchronized with verificationRequired"() {
+        when:
+        def decryptor = new Decryptor()
+        then:
+        decryptor.verificationRequired
+        decryptor.verificationType == VerificationType.Required
+
+        when:
+        decryptor.verificationRequired = false
+        then:
+        !decryptor.verificationRequired
+        decryptor.verificationType == VerificationType.None
+
+        when:
+        decryptor.verificationType = VerificationType.Required
+        then:
+        decryptor.verificationRequired
+        decryptor.verificationType == VerificationType.Required
+
+        when:
+        decryptor.verificationType = VerificationType.Optional
+        then:
+        !decryptor.verificationRequired
+        decryptor.verificationType == VerificationType.Optional
+
+        when:
+        decryptor.verificationType = VerificationType.None
+        then:
+        !decryptor.verificationRequired
+        decryptor.verificationType == VerificationType.None
+    }
 
     def "decrypt without verification"() {
         when:
@@ -21,6 +54,7 @@ class DecryptorSpec extends Specification {
         date(meta.lastModified) == '2016-03-17'
         meta.format == FileMetadata.Format.BINARY
         !meta.verified
+        !meta.signatures
     }
 
     def "decrypt with verification"() {
@@ -44,6 +78,12 @@ pub e  AFAFA3C5
 pub v  BC3F6A4B
         '''.trim()
         meta.verified.keys.signingUid == ['']
+
+        meta.signatures.verified == [true]
+        meta.signatures.keyId == [0xAFDB7B47BC3F6A4B as Long]
+        meta.signatures.key.master.shortId == ['880A1469']
+        meta.signatures.key.signingUid == ['']
+        meta.signatures.verifiedKey.master.shortId == ['880A1469']
     }
 
     def "decrypt file with verification"() {
@@ -58,6 +98,7 @@ pub v  BC3F6A4B
         then:
         plainFile.text == 'test\n'
         meta.verified
+        meta.signatures.verifiedKey.master.shortId == ['880A1469']
     }
 
     def "decrypt same file"() {
@@ -73,16 +114,6 @@ pub v  BC3F6A4B
         testFile.text == 'foo'
     }
 
-    def "decrypt unsigned with verification"() {
-        when:
-        def decryptor = new Decryptor(new Ring(stream('test-ring.asc')))
-        decryptor.ring.keys*.passphrase = 'c02e'
-        decryptor.decrypt stream('test-encrypted-for-key-1.txt.asc'), buf
-        then:
-        def e = thrown(VerificationException)
-        e.message == 'content not signed with a required key'
-    }
-
     def "decrypt unsigned file with verification"() {
         when:
         def decryptor = new Decryptor(
@@ -94,6 +125,20 @@ pub v  BC3F6A4B
         then:
         def e = thrown(VerificationException)
         e.message == 'content not signed with a required key'
+        !plainFile.exists()
+    }
+
+    def "decrypt bad signature file with verification"() {
+        when:
+        def decryptor = new Decryptor(
+            new Key(file('test-key-1.asc'), 'c02e'),
+            new Key(file('test-key-2-pub.asc')),
+        )
+        def plainFile = getTestFile('foo')
+        decryptor.decrypt file('test-encrypted-for-key-1-signed-by-key-2-with-bad-signature.txt.asc'), plainFile
+        then:
+        def e = thrown(VerificationException)
+        e.message =~ ~/^bad signature for key pub v  880A1469 Test Key 2.+/
         !plainFile.exists()
     }
 
@@ -111,6 +156,51 @@ pub v  BC3F6A4B
         date(meta.lastModified) == '2016-03-17'
         meta.format == FileMetadata.Format.BINARY
         !meta.verified
+        !meta.signatures
+    }
+
+    def "decrypt unsigned with optional verification"() {
+        when:
+        def decryptor = new Decryptor(new Ring(stream('test-ring.asc')))
+        decryptor.ring.keys*.passphrase = 'c02e'
+        decryptor.verificationType = VerificationType.Optional
+        def meta = decryptor.decrypt(stream('test-encrypted-for-key-1.txt.asc'), buf)
+        then:
+        buf.toString() == 'test\n'
+        meta.name == 'test.txt'
+        !meta.verified
+        !meta.signatures
+    }
+
+    def "decrypt signed with optional verification"() {
+        when:
+        def decryptor = new Decryptor(new Ring(stream('test-ring.asc')))
+        decryptor.ring.keys*.passphrase = 'c02e'
+        decryptor.verificationType = VerificationType.Optional
+        def meta = decryptor.decrypt(stream(
+            'test-encrypted-for-key-1-signed-by-key-2.txt.asc'), buf)
+        then:
+        buf.toString() == 'test\n'
+        meta.name == 'test.txt'
+        meta.verified
+        meta.signatures.verifiedKey.master.shortId == ['880A1469']
+    }
+
+    def "decrypt bad signature with optional verification"() {
+        when:
+        def decryptor = new Decryptor(new Ring(stream('test-ring.asc')))
+        decryptor.ring.keys*.passphrase = 'c02e'
+        decryptor.verificationType = VerificationType.Optional
+        def meta = decryptor.decrypt(stream(
+            'test-encrypted-for-key-1-signed-by-key-2-with-bad-signature.txt.asc'), buf)
+        then:
+        buf.toString() == 'test\n'
+        meta.name == 'test.txt'
+        !meta.verified
+        meta.signatures.verified == [false]
+        meta.signatures.keyId == [0xAFDB7B47BC3F6A4B as Long]
+        meta.signatures.key.master.shortId == ['880A1469']
+        meta.signatures.verifiedKey == [null]
     }
 
     def "decrypt camellia"() {
@@ -175,6 +265,26 @@ pub v  BC3F6A4B
         e.message == 'content not signed with a required key'
     }
 
+    def "decrypt without verification key with optional verification"() {
+        when:
+        def decryptor = new Decryptor(new Ring(stream('test-ring.asc')))
+        decryptor.ring.keys*.passphrase = 'c02e'
+        // remove all but key 1
+        // (leaving the decryption key, but not the verification key)
+        decryptor.ring.keys = decryptor.ring.keys.findAll { it.findAll 'key-1' }
+        decryptor.verificationType = VerificationType.Optional
+        def meta = decryptor.decrypt(stream(
+            'test-encrypted-for-key-1-signed-by-key-2.txt.asc'), buf)
+        then:
+        buf.toString() == 'test\n'
+        meta.name == 'test.txt'
+        !meta.verified
+        meta.signatures.verified == [false]
+        meta.signatures.keyId == [0xAFDB7B47BC3F6A4B as Long]
+        meta.signatures.key == [null]
+        meta.signatures.verifiedKey == [null]
+    }
+
     def "decrypt with public and private versions of same key"() {
         when:
         def decryptor = new Decryptor(
@@ -187,6 +297,7 @@ pub v  BC3F6A4B
         then:
         buf.toString() == 'test\n'
         meta.verified
+        meta.signatures.verifiedKey.master.shortId == ['880A1469']
     }
 
     def "decrypt symmetric without verification"() {
@@ -202,6 +313,7 @@ pub v  BC3F6A4B
         date(meta.lastModified) == '2016-03-23'
         meta.format == FileMetadata.Format.BINARY
         !meta.verified
+        !meta.signatures
     }
 
     def "decrypt symmetric with wrong passphrase"() {
@@ -225,6 +337,27 @@ pub v  BC3F6A4B
         e.message == 'content not signed with a required key'
     }
 
+    def "decrypt symmetric without verification key with optional verification"() {
+        when:
+        def meta = new Decryptor()
+            .withSymmetricPassphrase('c02e')
+            .withVerificationType(VerificationType.Optional)
+            .decrypt(stream('test-encrypted-for-key-1-and-passphrase-signed-by-key-2.txt.asc'), buf)
+        then:
+        buf.toString() == 'test\n'
+
+        meta.name == 'test.txt'
+        meta.length == 5
+        date(meta.lastModified) == '2016-03-23'
+        meta.format == FileMetadata.Format.BINARY
+
+        !meta.verified
+        meta.signatures.verified == [false]
+        meta.signatures.keyId == [0xAFDB7B47BC3F6A4B as Long]
+        meta.signatures.key == [null]
+        meta.signatures.verifiedKey == [null]
+    }
+
     def "decrypt symmetric with verification"() {
         when:
         def decryptor = new Decryptor(new Ring(stream('test-ring-pub.asc')))
@@ -240,8 +373,7 @@ pub v  BC3F6A4B
         meta.format == FileMetadata.Format.BINARY
 
         meta.verified
-        meta.verified.keys.master.shortId == ['880A1469']
-        meta.verified.keys.signingUid == ['']
+        meta.signatures.verifiedKey.master.shortId == ['880A1469']
     }
 
     def "decrypt optional symmetric with key instead"() {
@@ -260,8 +392,7 @@ pub v  BC3F6A4B
         meta.format == FileMetadata.Format.BINARY
 
         meta.verified
-        meta.verified.keys.master.shortId == ['880A1469']
-        meta.verified.keys.signingUid == ['']
+        meta.signatures.verifiedKey.master.shortId == ['880A1469']
     }
 
     def "decrypt symmetric and clear passphrase"() {
@@ -375,6 +506,8 @@ pub e  AFAFA3C5
 pub v  BC3F6A4B
         '''.trim()
         meta.verified.keys.signingUid == ['']
+
+        meta.signatures.verifiedKey.master.shortId == ['880A1469']
     }
 
     def "verify signed by 1 of 2 keys"() {
@@ -393,6 +526,8 @@ pub v  BC3F6A4B
         meta.verified
         meta.verified.keys.master.shortId == ['013826C3']
         meta.verified.keys.signingUid == ['']
+
+        meta.signatures.verifiedKey.master.shortId == ['013826C3']
     }
 
     def "verify signed by multiple keys"() {
@@ -411,6 +546,8 @@ pub v  BC3F6A4B
         meta.verified
         meta.verified.keys.master.shortId == ['880A1469', '013826C3']
         meta.verified.keys.signingUid == ['', '']
+
+        meta.signatures.verifiedKey.master.shortId == ['880A1469', '013826C3']
     }
 
     def "verify without any key"() {
@@ -420,6 +557,27 @@ pub v  BC3F6A4B
         then:
         def e = thrown(VerificationException)
         e.message == 'content not signed with a required key'
+    }
+
+    def "verify optionally without any key"() {
+        when:
+        def decryptor = new Decryptor()
+        decryptor.verificationType = VerificationType.Optional
+        def meta = decryptor.decrypt(stream(
+            'test-signed-by-key-1.txt.asc'), buf)
+        then:
+        buf.toString() == 'test\n'
+
+        meta.name == 'test.txt'
+        meta.length == 5
+        date(meta.lastModified) == '2016-03-22'
+        meta.format == FileMetadata.Format.BINARY
+
+        !meta.verified
+        meta.signatures.verified == [false]
+        meta.signatures.keyId == [0x72A423A0013826C3 as Long]
+        meta.signatures.key == [null]
+        meta.signatures.verifiedKey == [null]
     }
 
     def "decrypt null stream"() {

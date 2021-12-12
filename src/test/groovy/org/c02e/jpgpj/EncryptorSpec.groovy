@@ -30,6 +30,7 @@ class EncryptorSpec extends Specification {
         meta.lastModified == 0
         meta.format == FileMetadata.Format.BINARY
         !meta.verified
+        !meta.signatures
     }
 
     def "compress only"() {
@@ -514,6 +515,7 @@ hQEMAyne546XDHBhAQ...
             'Test 2 (CODESurvey) <test-key-2@codesurvey.org>',
         ]
         meta.verified.keys.signingUid == ['Test Key 2 <test-key-2@c02e.org>']
+        meta.signatures.verifiedKey.signingUid == ['Test Key 2 <test-key-2@c02e.org>']
     }
 
     def "encrypt and sign with multiple keys"() {
@@ -541,6 +543,15 @@ hQEMAyne546XDHBhAQ...
             'Test Key 1 <test-key-1@c02e.org>',
             'Test Key 2 <test-key-2@c02e.org>',
         ]
+        meta.signatures.verified == [true, true]
+        meta.signatures.keyId == [
+            0x72A423A0013826C3 as Long,
+            0xAFDB7B47BC3F6A4B as Long,
+        ]
+        meta.signatures.verifiedKey.signingUid == [
+            'Test Key 1 <test-key-1@c02e.org>',
+            'Test Key 2 <test-key-2@c02e.org>',
+        ]
 
         when:
         plainOut = new ByteArrayOutputStream()
@@ -562,6 +573,15 @@ hQEMAyne546XDHBhAQ...
             'Test Key 1 <test-key-1@c02e.org>',
             'Test Key 2 <test-key-2@c02e.org>',
         ]
+        meta.signatures.verified == [true, true]
+        meta.signatures.keyId == [
+            0x72A423A0013826C3 as Long,
+            0xAFDB7B47BC3F6A4B as Long,
+        ]
+        meta.signatures.verifiedKey.signingUid == [
+            'Test Key 1 <test-key-1@c02e.org>',
+            'Test Key 2 <test-key-2@c02e.org>',
+        ]
 
         when:
         plainOut = new ByteArrayOutputStream()
@@ -579,6 +599,14 @@ hQEMAyne546XDHBhAQ...
             'Test 2 (CODESurvey) <test-key-2@codesurvey.org>',
         ]
         meta.verified.keys.signingUid == ['Test Key 2 <test-key-2@c02e.org>']
+        meta.signatures.verified == [false, true]
+        meta.signatures.keyId == [
+            0x72A423A0013826C3 as Long,
+            0xAFDB7B47BC3F6A4B as Long,
+        ]
+        // only key 2 is known
+        meta.signatures.key.master.shortId == ['880A1469']
+        meta.signatures.verifiedKey.signingUid == ['Test Key 2 <test-key-2@c02e.org>']
     }
 
     def "encrypt symmetric and clear passphrase"() {
@@ -716,6 +744,7 @@ hQEMAyne546XDHBhAQ...
         meta.format == src.format
 
         !meta.verified
+        !meta.signatures
     }
 
     def "encrypt and sign with metadata"() {
@@ -746,6 +775,7 @@ hQEMAyne546XDHBhAQ...
             'Test 2 (CODESurvey) <test-key-2@codesurvey.org>',
         ]
         meta.verified.keys.signingUid == ['Test Key 2 <test-key-2@c02e.org>']
+        meta.signatures.verifiedKey.signingUid == ['Test Key 2 <test-key-2@c02e.org>']
     }
 
     def "encrypt and sign with passphrase-less key"() {

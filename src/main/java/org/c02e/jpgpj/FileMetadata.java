@@ -6,7 +6,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileTime;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
@@ -48,6 +50,71 @@ public class FileMetadata {
         }
     }
 
+    /**
+     * Signature found by decryptor.
+     */
+    public static class Signature {
+        private boolean verified;
+        private long keyId;
+        private Key key;
+
+        /** Constructs blank signature object. */
+        public Signature() {}
+
+        /** Constructs unverified signature object for the specified subkey ID. */
+        public Signature(long keyId) {
+            this();
+            this.keyId = keyId;
+        }
+
+        /** Constructs unverified signature object for the specified key. */
+        public Signature(long keyId, Key key) {
+            this(keyId);
+            this.key = key;
+        }
+
+        /** True if signature was verified. */
+        public boolean isVerified() {
+            return verified;
+        }
+
+        /** True if signature was verified. */
+        public void setVerified(boolean x) {
+            verified = x;
+        }
+
+        /** ID of subkey used for signature. */
+        public long getKeyId() {
+            return keyId;
+        }
+
+        /** ID of subkey used for signature. */
+        public void setKeyId(long x) {
+            keyId = x;
+        }
+
+        /** Key used for signature, or null. */
+        public Key getKey() {
+            return key;
+        }
+
+        /** Key used for signature, or null. */
+        public void setKey(Key x) {
+            key = x;
+        }
+
+        /** Key used for signature if verified, or null. */
+        public Key getVerifiedKey() {
+            return verified ? key : null;
+        }
+
+        /** Key used for signature if verified, or null. */
+        public void setVerifiedKey(Key x) {
+            verified = x != null;
+            key = x;
+        }
+    }
+
     public static final String DEFAULT_NAME = "";
     public static final Format DEFAULT_FORMAT = Format.BINARY;
 
@@ -55,6 +122,7 @@ public class FileMetadata {
     private Format format;
     private long length;
     private long lastModified;
+    private final List<Signature> signatures = new ArrayList<Signature>();
     private final Ring verified = new Ring();
 
     /** Constructs a metadata object with default values. */
@@ -193,6 +261,11 @@ public class FileMetadata {
      */
     public Ring getVerified() {
         return verified;
+    }
+
+    /** Signatures found on the file, including unverified signatures. */
+    public List<Signature> getSignatures() {
+        return signatures;
     }
 
     /**

@@ -69,12 +69,52 @@ import org.slf4j.LoggerFactory;
  * }</pre>
  */
 public class Decryptor implements Cloneable {
+    /**
+     * Type of signature verification done by decryptor.
+     */
+    public enum VerificationType {
+        /**
+         * No signature verification.
+         * <p>
+         * Decryptor ignores signature packets, and does not populate
+         * {@link FileMetadata.Signature} list.
+         */
+        None,
+        /**
+         * Optional signature verification.
+         * <p>
+         * Decryptor attempts to verify all signature packets, and populates
+         * {@link FileMetadata.Signature} list with results.
+         * <p>
+         * Decryptor will not raise any {@link VerificationException}s.
+         * Decryptor will raise a {@link PGPException} if a signature packet
+         * cannot be parsed.
+         */
+        Optional,
+        /**
+         * Full signature verification.
+         * <p>
+         * Decryptor attempts to verify all signature packets, and populates
+         * {@link FileMetadata.Signature} list with results.
+         * <p>
+         * Decryptor will raise a {@link VerificationException}
+         * if the message has not been signed by at least one key configured for
+         * verification on the decryptor's key ring.
+         * Decryptor will raise a {@link PGPException} if a signature packet
+         * cannot be parsed.
+         */
+        Required;
+    }
+
     public static final int DEFAULT_MAX_FILE_BUFFER_SIZE = 0x100000; // 1MB
+    public static final VerificationType DEFAULT_VERIFICATION_TYPE = VerificationType.Required;
     public static final boolean DEFAULT_VERIFICATION_REQUIRED = true;
     public static final int DEFAULT_COPY_FILE_BUFFER_SIZE = 0x4000;
     public static final boolean DEFAULT_LOGGING_ENABLED = false;
 
-    protected boolean verificationRequired = DEFAULT_VERIFICATION_REQUIRED;
+    protected VerificationType verificationType = DEFAULT_VERIFICATION_TYPE;
+    /** @deprecated Use {@link #verificationType} instead. */
+    @Deprecated protected boolean verificationRequired = DEFAULT_VERIFICATION_REQUIRED;
     protected char[] symmetricPassphraseChars;
     /** @deprecated Null unless explicitly set by user. */
     @Deprecated
@@ -84,7 +124,6 @@ public class Decryptor implements Cloneable {
     protected boolean loggingEnabled = DEFAULT_LOGGING_ENABLED;
     protected Ring ring;
     protected final Logger log = LoggerFactory.getLogger(Decryptor.class.getName());
-
 
     /** Constructs a decryptor with an empty key ring. */
     public Decryptor() {
@@ -103,11 +142,35 @@ public class Decryptor implements Cloneable {
     }
 
     /**
+     * Type of signature verification.
+     * Defaults to {@link VerificationType#Required}.
+     */
+    public VerificationType getVerificationType() {
+        return verificationType;
+    }
+
+    /**
+     * Type of signature verification.
+     */
+    public void setVerificationType(VerificationType x) {
+        verificationRequired = x == VerificationType.Required;
+        verificationType = x;
+    }
+
+    /**
+     * Type of signature verification.
+     */
+    public Decryptor withVerificationType(VerificationType x) {
+        setVerificationType(x);
+        return this;
+    }
+
+    /**
      * @return {@code true} to require messages be signed with
      * at least one key from ring. Defaults to true.
      */
     public boolean isVerificationRequired() {
-        return verificationRequired;
+        return verificationType == VerificationType.Required;
     }
 
     /**
@@ -116,7 +179,7 @@ public class Decryptor implements Cloneable {
      * @see #DEFAULT_VERIFICATION_REQUIRED
      */
     public void setVerificationRequired(boolean x) {
-        verificationRequired = x;
+        setVerificationType(x ? VerificationType.Required : VerificationType.None);
     }
 
     /** @see #setVerificationRequired(boolean) */
@@ -547,17 +610,14 @@ public class Decryptor implements Cloneable {
     protected List<Verifier> buildVerifiers(Iterator<?> signatures)
             throws PGPException {
         List<Verifier> verifiers = new ArrayList<Verifier>();
-        while (signatures.hasNext()) {
-            Verifier verifier = null;
+        if (getVerificationType() == VerificationType.None) return verifiers;
 
+        while (signatures.hasNext()) {
             Object signature = signatures.next();
             if (signature instanceof PGPSignature)
-                verifier = new Verifier((PGPSignature) signature);
+                verifiers.add(new Verifier((PGPSignature) signature));
             else if (signature instanceof PGPOnePassSignature)
-                verifier = new Verifier((PGPOnePassSignature) signature);
-
-            if (verifier != null && verifier.isKeyAvailable())
-                verifiers.add(verifier);
+                verifiers.add(new Verifier((PGPOnePassSignature) signature));
         }
         return verifiers;
     }
@@ -662,21 +722,26 @@ public class Decryptor implements Cloneable {
         byte[] buf = getCopyBuffer();
         int len = i.read(buf);
 
-        boolean verifyResult = isVerificationRequired();
-        if (verifyResult && Util.isEmpty(verifiers))
+        // can't verify signatures with unknown or unusable keys
+        // (ie for which Verifier.findVerificationSubkey() returned null)
+        List<Verifier> verifiable = new ArrayList<Verifier>();
+        for (Verifier verifier : verifiers)
+            if (verifier.isKeyAvailable())
+                verifiable.add(verifier);
+
+        if (getVerificationType() == VerificationType.Required
+                && Util.isEmpty(verifiable))
             throw new VerificationException(
                 "content not signed with a required key");
 
         while (len != -1) {
             total += len;
 
-            if (verifyResult) {
-                for (Verifier verifier : verifiers)
-                    if (verifier.sig != null)
-                        verifier.sig.update(buf, 0, len);
-                    else
-                        verifier.sig1.update(buf, 0, len);
-            }
+            for (Verifier verifier : verifiable)
+                if (verifier.sig != null)
+                    verifier.sig.update(buf, 0, len);
+                else
+                    verifier.sig1.update(buf, 0, len);
 
             o.write(buf, 0, len);
             len = i.read(buf);
@@ -691,22 +756,34 @@ public class Decryptor implements Cloneable {
      */
     protected void verify(List<Verifier> verifiers, List<FileMetadata> meta)
             throws PGPException {
-        if (!isVerificationRequired()) return;
-
         for (Verifier verifier : verifiers) {
-            if (!verifier.verify())
-                throw new VerificationException(
-                        "bad signature for key " + verifier.key);
-            if (isLoggingEnabled()) {
-                log.debug("good signature for key {}", verifier.key);
-            }
-
             Key key = verifier.getSignedBy();
-            for (FileMetadata file : meta) {
-                Ring verified = file.getVerified();
-                Collection<Key> keys = verified.getKeys();
-                keys.add(key);
+            FileMetadata.Signature signature =
+                new FileMetadata.Signature(verifier.getSignedByKeyId(), key);
+
+            for (FileMetadata file : meta)
+                file.getSignatures().add(signature);
+
+            if (verifier.verify()) {
+                if (isLoggingEnabled())
+                    log.debug("good signature for key {}", key);
+
+                signature.setVerified(true);
+
+                for (FileMetadata file : meta)
+                    file.getVerified().getKeys().add(key);
+
+            } else if (key != null) {
+                if (getVerificationType() == VerificationType.Required)
+                    throw new VerificationException(
+                            "bad signature for key " + key);
+                else if (isLoggingEnabled())
+                    log.debug("bad signature for key {}", key);
             }
+            // else if key is null, a message was already logged by
+            // Verifier.findVerificationSubkey();
+            // and if all verifier keys are null when verification is required,
+            // an exception was already raised by copy()
         }
     }
 
@@ -856,17 +933,28 @@ public class Decryptor implements Cloneable {
          * and only public subkeys, or null.
          */
         public Key getSignedBy() throws PGPException {
-            if (key == null || sig == null) return null;
+            if (key == null) return null;
 
             // extract optional uid if available
             String uid = null;
-            PGPSignatureSubpacketVector subpackets = sig.getHashedSubPackets();
-            if (subpackets != null)
-                uid = subpackets.getSignerUserID();
+            if (sig != null) {
+                PGPSignatureSubpacketVector subpackets = sig.getHashedSubPackets();
+                if (subpackets != null)
+                    uid = subpackets.getSignerUserID();
+            }
 
             Key by = key.toPublicKey();
             by.setSigningUid(uid != null ? uid : "");
             return by;
+        }
+
+        /**
+         * Key ID of signing subkey.
+         */
+        public long getSignedByKeyId() {
+            if (sig != null) return sig.getKeyID();
+            if (sig1 != null) return sig1.getKeyID();
+            return 0;
         }
 
         /**
