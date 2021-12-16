@@ -204,7 +204,7 @@ Add the following dependency to your `pom.xml` file:
 <dependency>
     <groupId>org.c02e.jpgpj</groupId>
     <artifactId>jpgpj</artifactId>
-    <version>1.2</version>
+    <version>1.3</version>
 </dependency>
 ```
 
@@ -215,14 +215,14 @@ Add the following dependency to your `build.gradle` file:
 ```gradle
 dependencies {
     ...
-    compile 'org.c02e.jpgpj:jpgpj:1.2'
+    compile 'org.c02e.jpgpj:jpgpj:1.3'
     ...
 }
 ```
 
 ### Manually
 
-Since Bouncy Castle does all the actual crypto, the Bouncy Castle "Provider" and "OpenPGP/BCPG" jars are required. You can download them from the [Bouncy Castle Latest Releases](https://www.bouncycastle.org/latest_releases.html) page (where you specifically want the `bcprov-jdk15on-169.jar` and `bcpg-jdk15on-169.jar` jar files).
+Since Bouncy Castle does all the actual crypto, the Bouncy Castle "Provider" and "OpenPGP/BCPG" jars are required. You can download them from the [Bouncy Castle Latest Releases](https://www.bouncycastle.org/latest_releases.html) page (where you specifically want the `bcprov-jdk15on-170.jar` and `bcpg-jdk15on-170.jar` jar files).
 
 Bouncy Castle is the only dependency of JPGPJ, however, so you only need to add its jar files, and the JPGPJ jar file, to your classpath.
 
