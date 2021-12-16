@@ -254,14 +254,14 @@ class EncryptorSpec extends Specification {
         decMeta.name == "bytesTest"
         decMeta.length == expected.length()
         decMeta.format == FileMetadata.Format.BINARY
-        
+
         decMeta == encMeta
 
         decMeta.verified
         decMeta.verified.keys.uids == [['Test Key 1 <test-key-1@c02e.org>']]
         decMeta.verified.keys.signingUid == ['Test Key 1 <test-key-1@c02e.org>']
     }
-    
+
     def "encrypt and sign with ascii armor"() {
         when:
         def encryptor = new Encryptor(new Ring(stream('test-key-1.asc')))
@@ -328,9 +328,9 @@ hQEMAyne546XDHBhAQ...
                     }
                 })
             encryptor.ring.keys*.passphrase = 'c02e'
-            
+
             encryptor.encrypt plainIn, cipherOut
-            
+
             def decryptor = new Decryptor(new Ring(stream('test-key-1.asc')))
             decryptor.ring.keys*.passphrase = 'c02e'
 
@@ -338,17 +338,17 @@ hQEMAyne546XDHBhAQ...
             // result headers list is unmodifiable and we want to sort it
             def armorHeaders = new ArrayList<>(result.armorHeaders)
             armorHeaders.sort(Comparator.naturalOrder())
-            
+
         then:
             result.asciiArmored == true
             armorHeaders.size() == 3
             armorHeaders[0].equals("Callback: true")    // added by callback
             armorHeaders[1].equals("Encryptor: c02e")   // global setting in encryptor
             armorHeaders[2].equals("Version: 2.71")     // overwritten by the callback
-            
+
             plainOut.toString() == plainText
     }
-    
+
     def "encrypt and sign file"() {
         when:
         def encryptor = new Encryptor(new Key(file('test-key-1.asc'), 'c02e'))
@@ -972,7 +972,7 @@ hQEMAyne546XDHBhAQ...
     protected getPlainBytes() {
         plainText.bytes
     }
-    
+
     protected getPlainIn() {
         new ByteArrayInputStream(plainBytes)
     }
