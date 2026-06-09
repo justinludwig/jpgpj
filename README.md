@@ -28,6 +28,25 @@ new Encryptor(bobPubKey)
 
 `Decryptor` requires no format configuration — it auto-detects MDC, AEAD, Argon2, and SHA3. Inspect `FileMetadata.getEncryptionDetails()` and `FileMetadata.Signature.getHashAlgorithm()` after decryption.
 
+### Public-key algorithms
+
+JPGPJ uses existing keys only (no key generation). Supported public-key algorithms for signing, verification, encryption, and decryption:
+
+| Algorithm | Signing / verify | Encryption / decrypt | Notes |
+|-----------|------------------|----------------------|-------|
+| **RSA** | Yes | Yes | Default for most legacy keys |
+| **DSA** | Yes | No (sign-only) | Legacy; use a separate RSA/ECDH encryption subkey |
+| **ECDSA** | Yes | Via **ECDH** subkey | Pair with an ECDH encryption subkey on the same keyring |
+| **Ed25519** | Yes (tags 22, 27) | Via **Cv25519/X25519** subkey | Use `HashingAlgorithm.SHA512` for signing |
+
+Recommended hash pairings (not enforced by JPGPJ; Bouncy Castle fails at runtime if invalid):
+
+- RSA / DSA: SHA-256 or SHA-512
+- ECDSA (NIST P-256): SHA-256; P-384: SHA-384; P-521: SHA-512
+- Ed25519: SHA-512 (GnuPG default)
+
+In FIPS-approved mode (`bc-fips`), RSA and AES defaults work; ECDSA and Ed25519 may be unavailable or restricted depending on your FIPS provider configuration.
+
 Here's an example of Alice encrypting and signing a file for Bob:
 ```java
 new Encryptor(

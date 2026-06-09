@@ -266,6 +266,46 @@ class SubkeyTest {
     }
 
     @Test
+    void dsaSecretKeyHasDsaPrimaryAndRsaEncryptionSubkey() throws IOException, PGPException {
+        Key key = new Key(loadResource("test-key-dsa.asc"));
+        // DSA primary (SCA) and RSA subkey (SEA) are both usable for signing
+        assertEquals(List.of(true, true), usableForSigning(key));
+        assertEquals(List.of(true, true), usableForVerification(key));
+        assertEquals(List.of(false, true), usableForEncryption(key));
+        assertEquals(List.of(false, true), usableForDecryption(key));
+        assertEquals(List.of(true, true), forSigning(key));
+        assertEquals(List.of(true, true), forVerification(key));
+        assertEquals(List.of(false, true), forEncryption(key));
+        assertEquals(List.of(false, true), forDecryption(key));
+    }
+
+    @Test
+    void ecdsaSecretKeyWithUsageFlagsSelectsCorrectSubkeys() throws IOException, PGPException {
+        Key key = new Key(loadResource("test-key-ecdsa.asc"));
+        assertEquals(List.of(true, false), usableForSigning(key));
+        assertEquals(List.of(true, false), usableForVerification(key));
+        assertEquals(List.of(false, true), usableForEncryption(key));
+        assertEquals(List.of(false, true), usableForDecryption(key));
+        assertEquals(List.of(true, false), forSigning(key));
+        assertEquals(List.of(true, false), forVerification(key));
+        assertEquals(List.of(false, true), forEncryption(key));
+        assertEquals(List.of(false, true), forDecryption(key));
+    }
+
+    @Test
+    void ed25519SecretKeyIsUsableForSigningAndCv25519Encryption() throws IOException, PGPException {
+        Key key = new Key(loadResource("test-key-ed25519.asc"));
+        assertEquals(List.of(true, false), usableForSigning(key));
+        assertEquals(List.of(true, false), usableForVerification(key));
+        assertEquals(List.of(false, true), usableForEncryption(key));
+        assertEquals(List.of(false, true), usableForDecryption(key));
+        assertEquals(List.of(true, false), forSigning(key));
+        assertEquals(List.of(true, false), forVerification(key));
+        assertEquals(List.of(false, true), forEncryption(key));
+        assertEquals(List.of(false, true), forDecryption(key));
+    }
+
+    @Test
     void extractPrivateKey() throws IOException, PGPException {
         Key key = new Key(loadResource("test-key-2.asc"), PASSPHRASE);
         assertEquals(Arrays.asList(null, true, true), privateKeyPresent(key));

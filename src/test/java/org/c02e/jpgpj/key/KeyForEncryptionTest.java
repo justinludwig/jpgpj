@@ -116,6 +116,21 @@ class KeyForEncryptionTest {
         assertEquals(List.of(false, false, true), subkeyFlags(key, FOR_ENCRYPTION));
     }
 
+    @Test
+    void dsaEcdsaAndEd25519KeysSelectEncryptionSubkeys() throws Exception {
+        KeyForEncryption dsa = new KeyForEncryption(loadResource("test-key-dsa.asc"));
+        assertTrue(dsa.isForEncryption());
+        assertEquals(List.of(false, true), subkeyFlags(dsa, FOR_ENCRYPTION));
+
+        KeyForEncryption ecdsa = new KeyForEncryption(loadResource("test-key-ecdsa.asc"));
+        assertTrue(ecdsa.isForEncryption());
+        assertEquals(List.of(false, true), subkeyFlags(ecdsa, FOR_ENCRYPTION));
+
+        KeyForEncryption ed25519 = new KeyForEncryption(loadResource("test-key-ed25519.asc"));
+        assertTrue(ed25519.isForEncryption());
+        assertEquals(List.of(false, true), subkeyFlags(ed25519, FOR_ENCRYPTION));
+    }
+
     @Nested
     class EmptyKey {
 

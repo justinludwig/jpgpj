@@ -114,6 +114,22 @@ class KeyForSigningTest {
         assertEquals(List.of(false, true, false), subkeyFlags(key, FOR_SIGNING));
     }
 
+    @Test
+    void dsaEcdsaAndEd25519KeysSelectSigningSubkeys() throws Exception {
+        KeyForSigning dsa = new KeyForSigning(loadResource("test-key-dsa.asc"));
+        assertTrue(dsa.isForSigning());
+        // gpg batch key: DSA primary (SCA) + RSA subkey (SEA)
+        assertEquals(List.of(true, true), subkeyFlags(dsa, FOR_SIGNING));
+
+        KeyForSigning ecdsa = new KeyForSigning(loadResource("test-key-ecdsa.asc"));
+        assertTrue(ecdsa.isForSigning());
+        assertEquals(List.of(true, false), subkeyFlags(ecdsa, FOR_SIGNING));
+
+        KeyForSigning ed25519 = new KeyForSigning(loadResource("test-key-ed25519.asc"));
+        assertTrue(ed25519.isForSigning());
+        assertEquals(List.of(true, false), subkeyFlags(ed25519, FOR_SIGNING));
+    }
+
     @Nested
     class EmptyKey {
 

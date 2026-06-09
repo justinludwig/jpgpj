@@ -4,6 +4,9 @@
 
 ### Added
 
+- Public-key algorithm support for DSA, ECDSA, and Ed25519 (tags 22, 27, 28) signing and verification; ECDH/Cv25519 encryption subkeys.
+- Test fixtures and round-trip tests for DSA, ECDSA, and Ed25519 keys; GnuPG interop golden files for decrypt/verify.
+- README section on supported public-key algorithms, hash pairings, and FIPS caveats.
 - PIT mutation testing via `./gradlew pitest` (`info.solidsoft.pitest` 1.19.0, JUnit 5 plugin 1.2.2).
 - `TestEnvironmentListener` so PIT's forked JVM matches the `line.separator` used by unit tests.
 - OpenPGP modern encryption API: `EncryptionProtection`, `AeadAlgorithm`, `AeadPacketStyle`, `PassphraseKeyDerivation`, `Argon2Parameters`, `OpenPgpProfile`.
