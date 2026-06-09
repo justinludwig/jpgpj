@@ -1,42 +1,153 @@
 plugins {
-    id 'java'
-    id 'groovy'
+    id 'java-library'
+    id 'maven-publish'
+    id 'signing'
+    id 'jacoco'
+    id 'info.solidsoft.pitest' version '1.19.0'
 }
 
 group = 'org.c02e.jpgpj'
-archivesBaseName = 'jpgpj'
-version = '1.3'
+version = '2.1.0'
 description = 'Java Pretty Good Privacy Jig'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+    withJavadocJar()
+    withSourcesJar()
+}
+
+base {
+    archivesName = 'jpgpj'
+}
 
 repositories {
     mavenCentral()
 }
 
+configurations {
+    fipsConflictTestRuntime {
+        canBeConsumed = false
+        canBeResolved = true
+    }
+}
+
 dependencies {
-    compile 'org.bouncycastle:bcpg-jdk15on:1.70'
-    compile 'org.slf4j:slf4j-api:1.7.32'
-    testCompile 'junit:junit:4.13.2'
-    testCompile 'org.codehaus.groovy:groovy-all:2.5.8'
-    testCompile 'org.slf4j:slf4j-simple:1.7.32'
-    testCompile 'org.spockframework:spock-core:1.3-groovy-2.5'
+    api 'org.bouncycastle:bcpg-jdk18on:1.84'
+    api 'org.bouncycastle:bcprov-jdk18on:1.84'
+    implementation 'org.bouncycastle:bcutil-jdk18on:1.84'
+    api 'org.slf4j:slf4j-api:2.0.17'
+
+    testImplementation platform('org.junit:junit-bom:5.11.4')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testImplementation 'org.junit.platform:junit-platform-launcher'
+    testRuntimeOnly 'org.slf4j:slf4j-simple:2.0.17'
+
+    fipsConflictTestRuntime 'org.bouncycastle:bc-fips:2.0.0'
+}
+
+tasks.named('test') {
+    useJUnitPlatform {
+        excludeTags 'fips-conflict'
+    }
+    systemProperty 'line.separator', "\n"
+    testLogging {
+        showStandardStreams = true
+    }
+    finalizedBy 'fipsConflictTest'
+}
+
+jacoco {
+    toolVersion = '0.8.12'
+}
+
+tasks.register('fipsConflictTest', Test) {
+    description = 'Verifies fail-fast when standard and FIPS BC providers are both on the classpath'
+    group = 'verification'
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath + configurations.fipsConflictTestRuntime
+    useJUnitPlatform {
+        includeTags 'fips-conflict'
+    }
+    systemProperty 'line.separator', "\n"
+    finalizedBy jacocoTestReport
+}
+
+tasks.named('jacocoTestReport') {
+    dependsOn tasks.named('test'), tasks.named('fipsConflictTest')
+    executionData.from(
+            layout.buildDirectory.file('jacoco/test.exec'),
+            layout.buildDirectory.file('jacoco/fipsConflictTest.exec'))
+    reports {
+        xml.required = true
+        html.required = true
+    }
 }
 
 javadoc {
     title = "JPGPJ $version API"
-    options.memberLevel = JavadocMemberLevel.PUBLIC
+    options {
+        memberLevel = JavadocMemberLevel.PUBLIC
+        addBooleanOption('Xdoclint:none', true)
+    }
 }
 
-test {
-    // output armor with \n instead of \r\n on Windows
-    systemProperty 'line.separator', '\n'
-    //systemProperty 'org.slf4j.simpleLogger.defaultLogLevel', 'TRACE'
-    testLogging {
-        /*
-        exceptionFormat 'full'
-        showCauses = true
-        showExceptions = true
-        showStackTraces = true
-        */
-        showStandardStreams = true
+publishing {
+    publications {
+        maven(MavenPublication) {
+            from components.java
+            pom {
+                name = 'Java Pretty Good Privacy Jig'
+                description = 'JPGPJ is a simple API on top of the Bouncy Castle Java OpenPGP implementation.'
+                url = 'https://github.com/justinludwig/jpgpj'
+                licenses {
+                    license {
+                        name = 'MIT License'
+                        url = 'https://opensource.org/licenses/MIT'
+                    }
+                }
+                scm {
+                    connection = 'scm:git:git@github.com:justinludwig/jpgpj.git'
+                    developerConnection = 'scm:git:git@github.com:justinludwig/jpgpj.git'
+                    url = 'https://github.com/justinludwig/jpgpj'
+                }
+            }
+        }
     }
+}
+
+signing {
+    required = { gradle.taskGraph.hasTask('publish') }
+    sign publishing.publications.maven
+}
+
+pitest {
+    junit5PluginVersion = '1.2.2'
+    targetClasses = ['org.c02e.jpgpj.*']
+    targetTests = ['org.c02e.jpgpj.*', 'org.c02e.jpgpj.*.*']
+    excludedTestClasses = ['org.c02e.jpgpj.JcaContextHelperFipsClasspathConflictTest']
+    excludedGroups = ['fips-conflict']
+    excludedClasses = [
+        'org.c02e.jpgpj.HashingAlgorithm',
+        'org.c02e.jpgpj.EncryptionAlgorithm',
+        'org.c02e.jpgpj.CompressionAlgorithm',
+        'org.c02e.jpgpj.EncryptionProtection',
+        'org.c02e.jpgpj.AeadAlgorithm',
+        'org.c02e.jpgpj.AeadPacketStyle',
+        'org.c02e.jpgpj.PassphraseKeyDerivation',
+        'org.c02e.jpgpj.OpenPgpProfile',
+        'org.c02e.jpgpj.EncryptedAsciiArmorHeadersCallback',
+        'org.c02e.jpgpj.EncryptionDetails',
+        'org.c02e.jpgpj.DecryptionResult',
+        'org.c02e.jpgpj.DecryptionException',
+        'org.c02e.jpgpj.PassphraseException',
+        'org.c02e.jpgpj.VerificationException',
+    ]
+    threads = 2
+    timeoutFactor = 3.0
+    timeoutConstInMillis = 10000
+    timestampedReports = false
+    exportLineCoverage = true
+    jvmArgs = ['-Xmx2048m']
 }

@@ -1,7 +1,32 @@
 Java Pretty Good Privacy Jig
 ============================
 
-JPGPJ provides a simple API on top of the [Bouncy Castle](https://www.bouncycastle.org/) Java OpenPGP implementation (which is full and robust implementation of [RFC 4880](https://tools.ietf.org/html/rfc4880), and compatible with other popular PGP implementations such as [GnuPG](https://www.gnupg.org/),  [GPGTools](https://gpgtools.org/), and [Gpg4win](https://www.gpg4win.org/)). The JPGPJ API is limited to file encryption, signing, decryption, and verification; it does not include the ability to generate, update, or sign keys, or to do clearsigning or detached signatures.
+JPGPJ provides a simple API on top of the [Bouncy Castle](https://www.bouncycastle.org/) Java OpenPGP implementation (which is a full and robust implementation of [RFC 4880](https://tools.ietf.org/html/rfc4880), and compatible with other popular PGP implementations such as [GnuPG](https://www.gnupg.org/),  [GPGTools](https://gpgtools.org/), and [Gpg4win](https://www.gpg4win.org/)). The JPGPJ API is limited to file encryption, signing, decryption, and verification; it does not include the ability to generate, update, or sign keys, or to do clearsigning or detached signatures.
+
+**Requirements:** Java 17 or later. Bouncy Castle `jdk18on` 1.84+ (`bcpg-jdk18on`, `bcprov-jdk18on`, `bcutil-jdk18on`).
+
+### Modern OpenPGP (RFC 9580 / GnuPG 2.4+)
+
+JPGPJ 2.1+ supports SHA3 signing, AEAD encryption, Argon2 passphrase key derivation, and a GnuPG-like modern preset:
+
+```java
+// gpg 2.4-style output in one call
+new Encryptor(aliceKey, bobKey).withModernDefaults()
+    .encrypt(plainFile, cipherFile);
+
+// fine-grained control
+new Encryptor(bobPubKey)
+    .setEncryptionProtection(EncryptionProtection.Aead)
+    .setAeadAlgorithm(AeadAlgorithm.Ocb)
+    .setAeadPacketStyle(AeadPacketStyle.V6)
+    .setEncryptionAlgorithm(EncryptionAlgorithm.AES256)
+    .setSigningAlgorithm(HashingAlgorithm.SHA3_512)
+    .setPassphraseKeyDerivation(PassphraseKeyDerivation.Argon2)
+    .setSymmetricPassphraseChars(passphrase)
+    .encrypt(plainIn, cipherOut);
+```
+
+`Decryptor` requires no format configuration — it auto-detects MDC, AEAD, Argon2, and SHA3. Inspect `FileMetadata.getEncryptionDetails()` and `FileMetadata.Signature.getHashAlgorithm()` after decryption.
 
 Here's an example of Alice encrypting and signing a file for Bob:
 ```java
@@ -62,13 +87,13 @@ throws ServletException, IOException {
         );
         // use custom encryption, signing, and compression algorithms
         encryptor.setEncryptionAlgorithm(EncryptionAlgorithm.CAST5);
-        encryptor.setSigningAlgorithm(HashAlgorithm.SHA1);
+        encryptor.setSigningAlgorithm(HashingAlgorithm.SHA1);
         encryptor.setCompressionAlgorithm(CompressionAlgorithm.ZLIB);
         // output with ascii armor
         encryptor.setAsciiArmored(true);
 
         // manipulate Alice's secret key before supplying it to the encryptor
-        Key alice = new new Key(new File("path/to/my/keys/alice-sec.gpg"));
+        Key alice = new Key(new File("path/to/my/keys/alice-sec.gpg"));
         for (Subkey subkey : alice.getSubkeys()) {
             // don't use Alice's encryption subkey
             if (subkey.isForEncryption())
@@ -204,7 +229,7 @@ Add the following dependency to your `pom.xml` file:
 <dependency>
     <groupId>org.c02e.jpgpj</groupId>
     <artifactId>jpgpj</artifactId>
-    <version>1.3</version>
+    <version>2.1.0</version>
 </dependency>
 ```
 
@@ -215,23 +240,45 @@ Add the following dependency to your `build.gradle` file:
 ```gradle
 dependencies {
     ...
-    compile 'org.c02e.jpgpj:jpgpj:1.3'
+    implementation 'org.c02e.jpgpj:jpgpj:2.1.0'
     ...
 }
 ```
 
 ### Manually
 
-Since Bouncy Castle does all the actual crypto, the Bouncy Castle "Provider" and "OpenPGP/BCPG" jars are required. You can download them from the [Bouncy Castle Latest Releases](https://www.bouncycastle.org/latest_releases.html) page (where you specifically want the `bcprov-jdk15on-170.jar` and `bcpg-jdk15on-170.jar` jar files).
+Since Bouncy Castle does all the actual crypto, the Bouncy Castle provider and OpenPGP jars are required. Download them from the [Bouncy Castle Latest Releases](https://www.bouncycastle.org/latest_releases.html) page (`bcprov-jdk18on`, `bcpg-jdk18on`, and `bcutil-jdk18on`, version 1.84 or later).
 
-Bouncy Castle is the only dependency of JPGPJ, however, so you only need to add its jar files, and the JPGPJ jar file, to your classpath.
+Bouncy Castle is the only dependency of JPGPJ, so you only need its jar files and the JPGPJ jar on your classpath.
+
+### Bouncy Castle FIPS
+
+For FIPS 140-3 certified deployments, use the Bouncy Castle FIPS artifact set instead of the standard jars:
+
+- `bc-fips` and `bcutil-fips` (provider)
+- `bcpg-fips` (OpenPGP)
+
+**Standard and FIPS Bouncy Castle jars must not coexist in the same JVM.**
+
+Before any JPGPJ operation, install the FIPS provider:
+
+```java
+import org.bouncycastle.jcajce.provider.BouncyCastleFipsProvider;
+import org.c02e.jpgpj.JcaContextHelper;
+
+JcaContextHelper.setSecurityProvider(new BouncyCastleFipsProvider());
+```
+
+Alternatively, set the system property `jpgpj.security.provider` to the fully-qualified provider class name. JPGPJ auto-detects whichever single BC stack is present on the classpath.
+
+JPGPJ defaults (AES128, SHA256, SHA512) are suitable for FIPS environments. Legacy algorithms exposed by the API (CAST5, IDEA, MD5, SHA1, etc.) may be rejected in strict FIPS approved mode.
 
 Building from Source
 --------------------
 
 Assuming you have git installed on your system, you can get the source from GitHub with the following command:
 ```shell
-git checkout https://github.com/justinludwig/jpgpj.git
+git clone https://github.com/justinludwig/jpgpj.git
 ```
 This will create a `jpgpj` directory, with the source inside.
 
@@ -240,6 +287,14 @@ Inside the `jpgpj` directory, you can run the tests with this command:
 ./gradlew test
 ```
 This will automatically download the right version of gradle for you, and run all the unit tests. You can view the test results at `build/reports/tests/index.html` (open that file in a web browser).
+
+To run [PIT](https://pitest.org/) mutation testing (about two minutes on a typical laptop):
+
+```shell
+./gradlew pitest
+```
+
+Open `build/reports/pitest/index.html` for the report. PIT forks an isolated JVM that does not inherit Gradle `test` task settings; `TestEnvironmentListener` normalizes `line.separator` before Bouncy Castle initializes.
 
 You can build the JPGPJ jar with this command:
 ```shell

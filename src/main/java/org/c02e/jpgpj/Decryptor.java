@@ -19,6 +19,7 @@ import java.util.Objects;
 import org.bouncycastle.bcpg.ArmoredInputStream;
 import org.bouncycastle.openpgp.PGPCompressedData;
 import org.bouncycastle.openpgp.PGPDataValidationException;
+import org.bouncycastle.openpgp.PGPEncryptedData;
 import org.bouncycastle.openpgp.PGPEncryptedDataList;
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPLiteralData;
@@ -37,6 +38,7 @@ import org.bouncycastle.openpgp.operator.PGPContentVerifierBuilderProvider;
 import org.bouncycastle.openpgp.operator.PublicKeyDataDecryptorFactory;
 import org.c02e.jpgpj.util.FileDetection;
 import org.c02e.jpgpj.util.FileDetection.DetectionResult;
+import org.c02e.jpgpj.util.OpenPgpMetadataExtractor;
 import org.c02e.jpgpj.util.Util;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -122,6 +124,8 @@ public class Decryptor implements Cloneable {
     protected int maxFileBufferSize = DEFAULT_MAX_FILE_BUFFER_SIZE; //1MB
     protected int copyFileBufferSize = DEFAULT_COPY_FILE_BUFFER_SIZE;
     protected boolean loggingEnabled = DEFAULT_LOGGING_ENABLED;
+    protected PGPEncryptedData lastDecryptedEncryptedData;
+    protected Integer lastSessionCipherTag;
     protected Ring ring;
     protected final Logger log = LoggerFactory.getLogger(Decryptor.class.getName());
 
@@ -575,8 +579,17 @@ public class Decryptor implements Cloneable {
                     matchSignatures(list.iterator(), verifiers);
             } else if (packet instanceof PGPEncryptedDataList) {
                 PGPEncryptedDataList list = (PGPEncryptedDataList) packet;
-                // decrypt and unpack encrypted content
-                meta.addAll(unpack(parse(decrypt(list.iterator())), plaintext));
+                InputStream decrypted = decrypt(list.getEncryptedDataObjects());
+                EncryptionDetails encryptionDetails =
+                        OpenPgpMetadataExtractor.fromEncryptedData(
+                                lastDecryptedEncryptedData, lastSessionCipherTag);
+                OpenPgpMetadataExtractor.applyPassphraseDerivation(encryptionDetails, list);
+                List<FileMetadata> decryptedMeta =
+                        unpack(parse(decrypted), plaintext);
+                for (FileMetadata file : decryptedMeta) {
+                    file.setEncryptionDetails(encryptionDetails);
+                }
+                meta.addAll(decryptedMeta);
             } else if (packet instanceof PGPCompressedData) {
                 InputStream i = ((PGPCompressedData) packet).getDataStream();
                 // unpack compressed content
@@ -641,6 +654,8 @@ public class Decryptor implements Cloneable {
     protected InputStream decrypt(Iterator<?> data)
             throws IOException, PGPException {
         PGPPBEEncryptedData pbe = null;
+        lastDecryptedEncryptedData = null;
+        lastSessionCipherTag = null;
 
         Ring decryptRing = getRing();
         boolean logDecryption = isLoggingEnabled();
@@ -690,7 +705,10 @@ public class Decryptor implements Cloneable {
             log.info("using decryption key {}", subkey);
         }
 
-        return data.getDataStream(buildPublicKeyDecryptor(subkey));
+        PublicKeyDataDecryptorFactory factory = buildPublicKeyDecryptor(subkey);
+        lastDecryptedEncryptedData = data;
+        lastSessionCipherTag = data.getSymmetricAlgorithm(factory);
+        return data.getDataStream(factory);
     }
 
     /**
@@ -703,8 +721,10 @@ public class Decryptor implements Cloneable {
             throw new DecryptionException("no suitable decryption key found");
 
         try {
-            return data.getDataStream(
-                buildSymmetricKeyDecryptor(passphraseChars));
+            PBEDataDecryptorFactory factory = buildSymmetricKeyDecryptor(passphraseChars);
+            lastDecryptedEncryptedData = data;
+            lastSessionCipherTag = data.getSymmetricAlgorithm(factory);
+            return data.getDataStream(factory);
         } catch (PGPDataValidationException e) {
             throw new PassphraseException(
                 "incorrect passphrase for symmetric key", e);
@@ -760,6 +780,7 @@ public class Decryptor implements Cloneable {
             Key key = verifier.getSignedBy();
             FileMetadata.Signature signature =
                 new FileMetadata.Signature(verifier.getSignedByKeyId(), key);
+            signature.setHashAlgorithm(verifier.getHashAlgorithm());
 
             for (FileMetadata file : meta)
                 file.getSignatures().add(signature);
@@ -955,6 +976,16 @@ public class Decryptor implements Cloneable {
             if (sig != null) return sig.getKeyID();
             if (sig1 != null) return sig1.getKeyID();
             return 0;
+        }
+
+        public HashingAlgorithm getHashAlgorithm() {
+            int tag = 0;
+            if (sig != null) {
+                tag = sig.getHashAlgorithm();
+            } else if (sig1 != null) {
+                tag = sig1.getHashAlgorithm();
+            }
+            return tag == 0 ? null : HashingAlgorithm.fromOpenPgpTag(tag);
         }
 
         /**

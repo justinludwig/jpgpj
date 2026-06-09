@@ -113,6 +113,18 @@ public class FileMetadata {
             verified = x != null;
             key = x;
         }
+
+        /** Hash algorithm used for this signature, if known. */
+        public HashingAlgorithm getHashAlgorithm() {
+            return hashAlgorithm;
+        }
+
+        /** Hash algorithm used for this signature, if known. */
+        public void setHashAlgorithm(HashingAlgorithm hashAlgorithm) {
+            this.hashAlgorithm = hashAlgorithm;
+        }
+
+        private HashingAlgorithm hashAlgorithm;
     }
 
     public static final String DEFAULT_NAME = "";
@@ -124,6 +136,7 @@ public class FileMetadata {
     private long lastModified;
     private final List<Signature> signatures = new ArrayList<Signature>();
     private final Ring verified = new Ring();
+    private EncryptionDetails encryptionDetails;
 
     /** Constructs a metadata object with default values. */
     public FileMetadata() {
@@ -266,6 +279,26 @@ public class FileMetadata {
     /** Signatures found on the file, including unverified signatures. */
     public List<Signature> getSignatures() {
         return signatures;
+    }
+
+    /**
+     * Encryption parameters detected during decryption, or {@code null} if unencrypted.
+     */
+    public EncryptionDetails getEncryptionDetails() {
+        return encryptionDetails;
+    }
+
+    /**
+     * Encryption parameters detected during decryption.
+     */
+    public void setEncryptionDetails(EncryptionDetails encryptionDetails) {
+        this.encryptionDetails = encryptionDetails;
+    }
+
+    /** @see #setEncryptionDetails(EncryptionDetails) */
+    public FileMetadata withEncryptionDetails(EncryptionDetails encryptionDetails) {
+        setEncryptionDetails(encryptionDetails);
+        return this;
     }
 
     /**
