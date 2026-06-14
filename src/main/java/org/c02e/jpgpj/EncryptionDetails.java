@@ -21,7 +21,7 @@ public class EncryptionDetails {
     /**
      * Bouncy Castle internal field name on {@link PGPPBEEncryptedData}; accessed
      * reflectively for S2K metadata. Verified by
-     * {@link BouncyCastleReflectionCompatibilityTest}.
+     * {@code BouncyCastleReflectionCompatibilityTest} in the test suite.
      */
     public static final String PBE_ENCRYPTED_DATA_KEY_DATA_FIELD = "keyData";
 
