@@ -81,7 +81,7 @@ public class Encryptor implements Cloneable {
     public static final int DEFAULT_COMPRESSION_LEVEL = 6;
     public static final CompressionAlgorithm DEFAULT_COMPRESSION_ALGORITHM = CompressionAlgorithm.ZLIB;
     public static final EncryptionAlgorithm DEFAULT_ENCRYPTION_ALGORITHM = EncryptionAlgorithm.AES128;
-    public static final HashingAlgorithm DEFAULT_SIGNING_ALGORITHM = HashingAlgorithm.SHA256;
+    public static final HashingAlgorithm DEFAULT_SIGNING_ALGORITHM = HashingAlgorithm.SHA384;
     public static final HashingAlgorithm DEFAULT_KEY_DERIVATION_ALGORITHM = HashingAlgorithm.SHA512;
     public static final int DEFAULT_KEY_DERIVATION_ALGORITHM_WORK_FACTOR = 255;
     public static final EncryptionProtection DEFAULT_ENCRYPTION_PROTECTION = EncryptionProtection.Mdc;
@@ -409,7 +409,7 @@ public class Encryptor implements Cloneable {
 
     /**
      * @return Signing algorithm to use.
-     * Defaults to {@link HashingAlgorithm#SHA256}.
+     * Defaults to {@link HashingAlgorithm#SHA384}.
      * @see #DEFAULT_SIGNING_ALGORITHM
      */
     public HashingAlgorithm getSigningAlgorithm() {
@@ -418,7 +418,7 @@ public class Encryptor implements Cloneable {
 
     /**
      * @param x Signing algorithm to use.
-     * Defaults to {@link HashingAlgorithm#SHA256}.
+     * Defaults to {@link HashingAlgorithm#SHA384}.
      * @see #DEFAULT_SIGNING_ALGORITHM
      */
     public void setSigningAlgorithm(HashingAlgorithm x) {
@@ -699,7 +699,7 @@ public class Encryptor implements Cloneable {
             setEncryptionProtection(EncryptionProtection.Aead);
             setAeadAlgorithm(AeadAlgorithm.Ocb);
             setAeadPacketStyle(AeadPacketStyle.V6);
-            setSigningAlgorithm(HashingAlgorithm.SHA256);
+            setSigningAlgorithm(HashingAlgorithm.SHA384);
             setPassphraseKeyDerivation(PassphraseKeyDerivation.Argon2);
             setArgon2Parameters(Argon2Parameters.GPG_RECOMMENDED);
             setCompressionAlgorithm(CompressionAlgorithm.ZLIB);

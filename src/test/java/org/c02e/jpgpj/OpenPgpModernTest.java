@@ -253,7 +253,7 @@ class OpenPgpModernTest {
             assertEquals(EncryptionAlgorithm.AES256, encryptor.getEncryptionAlgorithm());
             assertEquals(AeadAlgorithm.Ocb, encryptor.getAeadAlgorithm());
             assertEquals(AeadPacketStyle.V6, encryptor.getAeadPacketStyle());
-            assertEquals(HashingAlgorithm.SHA256, encryptor.getSigningAlgorithm());
+            assertEquals(HashingAlgorithm.SHA384, encryptor.getSigningAlgorithm());
             assertEquals(PassphraseKeyDerivation.Argon2, encryptor.getPassphraseKeyDerivation());
             assertEquals(Argon2Parameters.GPG_RECOMMENDED, encryptor.getArgon2Parameters());
             assertEquals(CompressionAlgorithm.ZLIB, encryptor.getCompressionAlgorithm());
@@ -306,7 +306,7 @@ class OpenPgpModernTest {
             assertEquals(EncryptionAlgorithm.AES128, encryptor.getEncryptionAlgorithm());
             assertEquals(AeadAlgorithm.Ocb, encryptor.getAeadAlgorithm());
             assertEquals(AeadPacketStyle.V6, encryptor.getAeadPacketStyle());
-            assertEquals(HashingAlgorithm.SHA256, encryptor.getSigningAlgorithm());
+            assertEquals(HashingAlgorithm.SHA384, encryptor.getSigningAlgorithm());
             assertEquals(HashingAlgorithm.SHA512, encryptor.getKeyDeriviationAlgorithm());
             assertEquals(255, encryptor.getKeyDeriviationWorkFactor());
             assertEquals(CompressionAlgorithm.ZLIB, encryptor.getCompressionAlgorithm());
@@ -341,7 +341,7 @@ class OpenPgpModernTest {
             assertEquals(EncryptionAlgorithm.AES256, encryptor.getEncryptionAlgorithm());
             assertEquals(AeadAlgorithm.Ocb, encryptor.getAeadAlgorithm());
             assertEquals(AeadPacketStyle.V6, encryptor.getAeadPacketStyle());
-            assertEquals(HashingAlgorithm.SHA256, encryptor.getSigningAlgorithm());
+            assertEquals(HashingAlgorithm.SHA384, encryptor.getSigningAlgorithm());
             assertEquals(PassphraseKeyDerivation.Argon2, encryptor.getPassphraseKeyDerivation());
             assertEquals(Argon2Parameters.GPG_RECOMMENDED, encryptor.getArgon2Parameters());
             assertEquals(CompressionAlgorithm.ZLIB, encryptor.getCompressionAlgorithm());

@@ -20,8 +20,12 @@ import org.bouncycastle.openpgp.PGPEncryptedDataList;
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPObjectFactory;
 import org.bouncycastle.openpgp.PGPPBEEncryptedData;
+import org.bouncycastle.openpgp.PGPPublicKeyEncryptedData;
 import org.bouncycastle.openpgp.operator.jcajce.JcaKeyFingerprintCalculator;
 import org.c02e.jpgpj.AeadAlgorithm;
+import org.c02e.jpgpj.DecryptionResult;
+import org.c02e.jpgpj.Decryptor;
+import org.c02e.jpgpj.EncryptionDetails;
 import org.c02e.jpgpj.Encryptor;
 
 public final class PgpPacketInspectSupport {
@@ -97,16 +101,33 @@ public final class PgpPacketInspectSupport {
         return cipherOut.toByteArray();
     }
 
-    public static void decryptForInspection(TestDecryptor decryptor, byte[] ciphertext)
+    public static DecryptionResult decryptForInspection(Decryptor decryptor, byte[] ciphertext)
             throws Exception {
-        decryptor.decryptWithFullDetails(new ByteArrayInputStream(ciphertext), new ByteArrayOutputStream());
-        assertNotNull(decryptor.getLastDecryptedEncryptedData());
+        DecryptionResult result = decryptor.decryptWithFullDetails(
+                new ByteArrayInputStream(ciphertext), new ByteArrayOutputStream());
+        assertNotNull(result.getFileMetadata().getEncryptionDetails());
+        return result;
     }
 
     private static PGPEncryptedData inspectedEncryptedData(byte[] ciphertext, TestDecryptor decryptor)
             throws Exception {
         decryptForInspection(decryptor, ciphertext);
-        return decryptor.getLastDecryptedEncryptedData();
+        return firstPublicKeyEncryptedData(ciphertext);
+    }
+
+    public static PGPEncryptedData firstPublicKeyEncryptedData(byte[] ciphertext) throws PGPException {
+        PGPEncryptedDataList list = firstEncryptedDataList(ciphertext);
+        for (PGPEncryptedData data : list) {
+            if (data instanceof PGPPublicKeyEncryptedData) {
+                return data;
+            }
+        }
+        Iterator<?> objects = list.getEncryptedDataObjects();
+        if (objects.hasNext()) {
+            return (PGPEncryptedData) objects.next();
+        }
+        fail("no encrypted data in message");
+        return null;
     }
 
     public static PGPEncryptedDataList firstEncryptedDataList(byte[] ciphertext) throws PGPException {
@@ -129,7 +150,8 @@ public final class PgpPacketInspectSupport {
     }
 
     private static SymmetricKeyEncSessionPacket pbeKeyData(PGPPBEEncryptedData pbe) throws Exception {
-        var field = PGPPBEEncryptedData.class.getDeclaredField("keyData");
+        var field = PGPPBEEncryptedData.class.getDeclaredField(
+                EncryptionDetails.PBE_ENCRYPTED_DATA_KEY_DATA_FIELD);
         field.setAccessible(true);
         return (SymmetricKeyEncSessionPacket) field.get(pbe);
     }

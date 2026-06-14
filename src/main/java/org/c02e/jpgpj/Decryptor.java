@@ -38,7 +38,6 @@ import org.bouncycastle.openpgp.operator.PGPContentVerifierBuilderProvider;
 import org.bouncycastle.openpgp.operator.PublicKeyDataDecryptorFactory;
 import org.c02e.jpgpj.util.FileDetection;
 import org.c02e.jpgpj.util.FileDetection.DetectionResult;
-import org.c02e.jpgpj.util.OpenPgpMetadataExtractor;
 import org.c02e.jpgpj.util.Util;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -124,8 +123,6 @@ public class Decryptor implements Cloneable {
     protected int maxFileBufferSize = DEFAULT_MAX_FILE_BUFFER_SIZE; //1MB
     protected int copyFileBufferSize = DEFAULT_COPY_FILE_BUFFER_SIZE;
     protected boolean loggingEnabled = DEFAULT_LOGGING_ENABLED;
-    protected PGPEncryptedData lastDecryptedEncryptedData;
-    protected Integer lastSessionCipherTag;
     protected Ring ring;
     protected final Logger log = LoggerFactory.getLogger(Decryptor.class.getName());
 
@@ -579,15 +576,11 @@ public class Decryptor implements Cloneable {
                     matchSignatures(list.iterator(), verifiers);
             } else if (packet instanceof PGPEncryptedDataList) {
                 PGPEncryptedDataList list = (PGPEncryptedDataList) packet;
-                InputStream decrypted = decrypt(list.getEncryptedDataObjects());
-                EncryptionDetails encryptionDetails =
-                        OpenPgpMetadataExtractor.fromEncryptedData(
-                                lastDecryptedEncryptedData, lastSessionCipherTag);
-                OpenPgpMetadataExtractor.applyPassphraseDerivation(encryptionDetails, list);
+                DecryptedData decrypted = decrypt(list);
                 List<FileMetadata> decryptedMeta =
-                        unpack(parse(decrypted), plaintext);
+                        unpack(parse(decrypted.dataStream), plaintext);
                 for (FileMetadata file : decryptedMeta) {
-                    file.setEncryptionDetails(encryptionDetails);
+                    file.setEncryptionDetails(decrypted.encryptionDetails);
                 }
                 meta.addAll(decryptedMeta);
             } else if (packet instanceof PGPCompressedData) {
@@ -649,13 +642,23 @@ public class Decryptor implements Cloneable {
     }
 
     /**
-     * Decrypts the encrypted data as the returned input stream.
+     * Decrypts an encrypted-data list, returning the decrypted stream and
+     * complete encryption metadata (including passphrase derivation from any
+     * co-located PBE packets).
      */
-    protected InputStream decrypt(Iterator<?> data)
+    protected DecryptedData decrypt(PGPEncryptedDataList list)
+            throws IOException, PGPException {
+        DecryptedData decrypted = decrypt(list.getEncryptedDataObjects());
+        decrypted.encryptionDetails.applyPassphraseDerivation(list);
+        return decrypted;
+    }
+
+    /**
+     * Decrypts the encrypted data, returning the decrypted stream and metadata.
+     */
+    protected DecryptedData decrypt(Iterator<?> data)
             throws IOException, PGPException {
         PGPPBEEncryptedData pbe = null;
-        lastDecryptedEncryptedData = null;
-        lastSessionCipherTag = null;
 
         Ring decryptRing = getRing();
         boolean logDecryption = isLoggingEnabled();
@@ -695,9 +698,9 @@ public class Decryptor implements Cloneable {
     }
 
     /**
-     * Decrypts the encrypted data as the returned input stream.
+     * Decrypts the encrypted data, returning the decrypted stream and metadata.
      */
-    protected InputStream decrypt(PGPPublicKeyEncryptedData data, Subkey subkey)
+    protected DecryptedData decrypt(PGPPublicKeyEncryptedData data, Subkey subkey)
             throws IOException, PGPException {
         if (data == null || subkey == null)
             throw new DecryptionException("no suitable decryption key found");
@@ -706,15 +709,16 @@ public class Decryptor implements Cloneable {
         }
 
         PublicKeyDataDecryptorFactory factory = buildPublicKeyDecryptor(subkey);
-        lastDecryptedEncryptedData = data;
-        lastSessionCipherTag = data.getSymmetricAlgorithm(factory);
-        return data.getDataStream(factory);
+        Integer sessionCipherTag = data.getSymmetricAlgorithm(factory);
+        EncryptionDetails encryptionDetails =
+                EncryptionDetails.fromEncryptedData(data, sessionCipherTag);
+        return new DecryptedData(encryptionDetails, data.getDataStream(factory));
     }
 
     /**
-     * Decrypts the encrypted data as the returned input stream.
+     * Decrypts the encrypted data, returning the decrypted stream and metadata.
      */
-    protected InputStream decrypt(PGPPBEEncryptedData data)
+    protected DecryptedData decrypt(PGPPBEEncryptedData data)
             throws IOException, PGPException {
         char[] passphraseChars = getSymmetricPassphraseChars();
         if ((data == null) || Util.isEmpty(passphraseChars))
@@ -722,9 +726,11 @@ public class Decryptor implements Cloneable {
 
         try {
             PBEDataDecryptorFactory factory = buildSymmetricKeyDecryptor(passphraseChars);
-            lastDecryptedEncryptedData = data;
-            lastSessionCipherTag = data.getSymmetricAlgorithm(factory);
-            return data.getDataStream(factory);
+            Integer sessionCipherTag = data.getSymmetricAlgorithm(factory);
+            EncryptionDetails encryptionDetails =
+                    EncryptionDetails.fromEncryptedData(data, sessionCipherTag);
+            encryptionDetails.applyS2kFrom(data);
+            return new DecryptedData(encryptionDetails, data.getDataStream(factory));
         } catch (PGPDataValidationException e) {
             throw new PassphraseException(
                 "incorrect passphrase for symmetric key", e);
@@ -885,6 +891,19 @@ public class Decryptor implements Cloneable {
             return other;
         } catch (CloneNotSupportedException e) {
             throw new UnsupportedOperationException("Unexpected clone failure for " + this);
+        }
+    }
+
+    /**
+     * Holds decrypted content and the encryption metadata extracted during decrypt.
+     */
+    protected static final class DecryptedData {
+        public final EncryptionDetails encryptionDetails;
+        public final InputStream dataStream;
+
+        public DecryptedData(EncryptionDetails encryptionDetails, InputStream dataStream) {
+            this.encryptionDetails = encryptionDetails;
+            this.dataStream = dataStream;
         }
     }
 
