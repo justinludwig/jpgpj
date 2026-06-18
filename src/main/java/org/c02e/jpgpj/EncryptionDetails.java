@@ -16,12 +16,16 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Encryption parameters detected or applied to a message.
+ *
+ * @since 2.1.0
  */
 public class EncryptionDetails {
     /**
      * Bouncy Castle internal field name on {@link PGPPBEEncryptedData}; accessed
      * reflectively for S2K metadata. Verified by
      * {@code BouncyCastleReflectionCompatibilityTest} in the test suite.
+     *
+     * @since 2.1.0
      */
     public static final String PBE_ENCRYPTED_DATA_KEY_DATA_FIELD = "keyData";
 
@@ -100,10 +104,16 @@ public class EncryptionDetails {
         this.detectedProfile = detectedProfile;
     }
 
+    /**
+     * @since 2.1.0
+     */
     public static EncryptionDetails fromEncryptedData(PGPEncryptedData data) throws PGPException {
         return fromEncryptedData(data, null);
     }
 
+    /**
+     * @since 2.1.0
+     */
     public static EncryptionDetails fromEncryptedData(PGPEncryptedData data, Integer sessionCipherTag)
             throws PGPException {
         EncryptionDetails details = new EncryptionDetails();
@@ -157,6 +167,9 @@ public class EncryptionDetails {
         return details;
     }
 
+    /**
+     * @since 2.1.0
+     */
     public void applyPassphraseDerivation(PGPEncryptedDataList encryptedDataList) {
         if (encryptedDataList == null) {
             return;
@@ -169,6 +182,9 @@ public class EncryptionDetails {
         }
     }
 
+    /**
+     * @since 2.1.0
+     */
     public void applyS2kFrom(PGPPBEEncryptedData pbe) {
         applyS2k(getSymmetricKeyEncSessionPacket(pbe));
     }

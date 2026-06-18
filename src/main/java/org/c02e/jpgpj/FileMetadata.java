@@ -114,12 +114,18 @@ public class FileMetadata {
             key = x;
         }
 
-        /** Hash algorithm used for this signature, if known. */
+        /** Hash algorithm used for this signature, if known.
+         *
+         * @since 2.1.0
+         */
         public HashingAlgorithm getHashAlgorithm() {
             return hashAlgorithm;
         }
 
-        /** Hash algorithm used for this signature, if known. */
+        /** Hash algorithm used for this signature, if known.
+         *
+         * @since 2.1.0
+         */
         public void setHashAlgorithm(HashingAlgorithm hashAlgorithm) {
             this.hashAlgorithm = hashAlgorithm;
         }
@@ -283,6 +289,8 @@ public class FileMetadata {
 
     /**
      * Encryption parameters detected during decryption, or {@code null} if unencrypted.
+     *
+     * @since 2.1.0
      */
     public EncryptionDetails getEncryptionDetails() {
         return encryptionDetails;
@@ -290,12 +298,15 @@ public class FileMetadata {
 
     /**
      * Encryption parameters detected during decryption.
+     *
+     * @since 2.1.0
      */
     public void setEncryptionDetails(EncryptionDetails encryptionDetails) {
         this.encryptionDetails = encryptionDetails;
     }
 
-    /** @see #setEncryptionDetails(EncryptionDetails) */
+    /** @see #setEncryptionDetails(EncryptionDetails)
+     * @since 2.1.0 */
     public FileMetadata withEncryptionDetails(EncryptionDetails encryptionDetails) {
         setEncryptionDetails(encryptionDetails);
         return this;

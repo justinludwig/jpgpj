@@ -4,6 +4,8 @@ import org.bouncycastle.bcpg.AEADAlgorithmTags;
 
 /**
  * AEAD mode for OpenPGP symmetric encryption (RFC 9580 / LibrePGP).
+ *
+ * @since 2.1.0
  */
 public enum AeadAlgorithm {
     Eax(AEADAlgorithmTags.EAX),

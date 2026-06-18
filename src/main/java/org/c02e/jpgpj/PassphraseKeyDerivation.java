@@ -2,6 +2,8 @@ package org.c02e.jpgpj;
 
 /**
  * How a symmetric passphrase is stretched into a session key for encryption.
+ *
+ * @since 2.1.0
  */
 public enum PassphraseKeyDerivation {
     /** Iterated+salted S2K with a hash algorithm and work factor (classic gpg). */

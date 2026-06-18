@@ -8,6 +8,8 @@ import org.bouncycastle.bcpg.S2K;
 /**
  * Argon2 parameters for symmetric passphrase encryption (RFC 9580).
  * Immutable value object mapping to Bouncy Castle {@link S2K.Argon2Params}.
+ *
+ * @since 2.1.0
  */
 public final class Argon2Parameters {
     public static final Argon2Parameters GPG_RECOMMENDED =

@@ -81,16 +81,25 @@ public class Encryptor implements Cloneable {
     public static final int DEFAULT_COMPRESSION_LEVEL = 6;
     public static final CompressionAlgorithm DEFAULT_COMPRESSION_ALGORITHM = CompressionAlgorithm.ZLIB;
     public static final EncryptionAlgorithm DEFAULT_ENCRYPTION_ALGORITHM = EncryptionAlgorithm.AES128;
-    public static final HashingAlgorithm DEFAULT_SIGNING_ALGORITHM = HashingAlgorithm.SHA384;
+    public static final HashingAlgorithm DEFAULT_SIGNING_ALGORITHM = HashingAlgorithm.SHA512;
     public static final HashingAlgorithm DEFAULT_KEY_DERIVATION_ALGORITHM = HashingAlgorithm.SHA512;
     public static final int DEFAULT_KEY_DERIVATION_ALGORITHM_WORK_FACTOR = 255;
+    /** @since 2.1.0 */
     public static final EncryptionProtection DEFAULT_ENCRYPTION_PROTECTION = EncryptionProtection.Mdc;
+    /** @since 2.1.0 */
     public static final AeadAlgorithm DEFAULT_AEAD_ALGORITHM = AeadAlgorithm.Ocb;
+    /** @since 2.1.0 */
     public static final AeadPacketStyle DEFAULT_AEAD_PACKET_STYLE = AeadPacketStyle.V6;
-    /** AEAD chunk size octet (RFC 9580: 2^(value + 6) bytes; 6 = 4096 bytes). */
+    /**
+     * AEAD chunk size octet (RFC 9580: 2^(value + 6) bytes; 6 = 4096 bytes).
+     *
+     * @since 2.1.0
+     */
     public static final int DEFAULT_AEAD_CHUNK_SIZE = 6;
+    /** @since 2.1.0 */
     public static final PassphraseKeyDerivation DEFAULT_PASSPHRASE_KEY_DERIVATION =
             PassphraseKeyDerivation.IteratedSalted;
+    /** @since 2.1.0 */
     public static final OpenPgpProfile DEFAULT_OPENPGP_PROFILE = OpenPgpProfile.Classic;
 
     public static final int DEFAULT_MAX_FILE_BUFFER_SIZE = 0x100000;    // 1MB
@@ -409,7 +418,7 @@ public class Encryptor implements Cloneable {
 
     /**
      * @return Signing algorithm to use.
-     * Defaults to {@link HashingAlgorithm#SHA384}.
+     * Defaults to {@link HashingAlgorithm#SHA512}.
      * @see #DEFAULT_SIGNING_ALGORITHM
      */
     public HashingAlgorithm getSigningAlgorithm() {
@@ -418,7 +427,7 @@ public class Encryptor implements Cloneable {
 
     /**
      * @param x Signing algorithm to use.
-     * Defaults to {@link HashingAlgorithm#SHA384}.
+     * Defaults to {@link HashingAlgorithm#SHA512}.
      * @see #DEFAULT_SIGNING_ALGORITHM
      */
     public void setSigningAlgorithm(HashingAlgorithm x) {
@@ -549,6 +558,8 @@ public class Encryptor implements Cloneable {
     /**
      * @return How the symmetric session key protects the payload.
      * Defaults to {@link EncryptionProtection#Mdc}.
+     *
+     * @since 2.1.0
      */
     public EncryptionProtection getEncryptionProtection() {
         return encryptionProtection;
@@ -557,12 +568,15 @@ public class Encryptor implements Cloneable {
     /**
      * @param x How the symmetric session key protects the payload.
      * Defaults to {@link EncryptionProtection#Mdc}.
+     *
+     * @since 2.1.0
      */
     public void setEncryptionProtection(EncryptionProtection x) {
         encryptionProtection = x != null ? x : DEFAULT_ENCRYPTION_PROTECTION;
     }
 
-    /** @see #setEncryptionProtection(EncryptionProtection) */
+    /** @see #setEncryptionProtection(EncryptionProtection)
+     * @since 2.1.0 */
     public Encryptor withEncryptionProtection(EncryptionProtection x) {
         setEncryptionProtection(x);
         return this;
@@ -571,17 +585,21 @@ public class Encryptor implements Cloneable {
     /**
      * @return AEAD mode when {@link #getEncryptionProtection()} is {@link EncryptionProtection#Aead}.
      * Defaults to {@link AeadAlgorithm#Ocb}.
+     *
+     * @since 2.1.0
      */
     public AeadAlgorithm getAeadAlgorithm() {
         return aeadAlgorithm;
     }
 
-    /** @see #getAeadAlgorithm() */
+    /** @see #getAeadAlgorithm()
+     * @since 2.1.0 */
     public void setAeadAlgorithm(AeadAlgorithm x) {
         aeadAlgorithm = x != null ? x : DEFAULT_AEAD_ALGORITHM;
     }
 
-    /** @see #setAeadAlgorithm(AeadAlgorithm) */
+    /** @see #setAeadAlgorithm(AeadAlgorithm)
+     * @since 2.1.0 */
     public Encryptor withAeadAlgorithm(AeadAlgorithm x) {
         setAeadAlgorithm(x);
         return this;
@@ -590,17 +608,21 @@ public class Encryptor implements Cloneable {
     /**
      * @return AEAD packet layout when using {@link EncryptionProtection#Aead}.
      * Defaults to {@link AeadPacketStyle#V6}.
+     *
+     * @since 2.1.0
      */
     public AeadPacketStyle getAeadPacketStyle() {
         return aeadPacketStyle;
     }
 
-    /** @see #getAeadPacketStyle() */
+    /** @see #getAeadPacketStyle()
+     * @since 2.1.0 */
     public void setAeadPacketStyle(AeadPacketStyle x) {
         aeadPacketStyle = x != null ? x : DEFAULT_AEAD_PACKET_STYLE;
     }
 
-    /** @see #setAeadPacketStyle(AeadPacketStyle) */
+    /** @see #setAeadPacketStyle(AeadPacketStyle)
+     * @since 2.1.0 */
     public Encryptor withAeadPacketStyle(AeadPacketStyle x) {
         setAeadPacketStyle(x);
         return this;
@@ -609,17 +631,21 @@ public class Encryptor implements Cloneable {
     /**
      * @return AEAD chunk size octet (RFC 9580: chunk bytes = 2^(value + 6)).
      * Defaults to {@value #DEFAULT_AEAD_CHUNK_SIZE}.
+     *
+     * @since 2.1.0
      */
     public int getAeadChunkSize() {
         return aeadChunkSize;
     }
 
-    /** @see #getAeadChunkSize() */
+    /** @see #getAeadChunkSize()
+     * @since 2.1.0 */
     public void setAeadChunkSize(int x) {
         aeadChunkSize = x;
     }
 
-    /** @see #setAeadChunkSize(int) */
+    /** @see #setAeadChunkSize(int)
+     * @since 2.1.0 */
     public Encryptor withAeadChunkSize(int x) {
         setAeadChunkSize(x);
         return this;
@@ -628,17 +654,21 @@ public class Encryptor implements Cloneable {
     /**
      * @return Passphrase-to-session-key derivation for symmetric encryption.
      * Defaults to {@link PassphraseKeyDerivation#IteratedSalted}.
+     *
+     * @since 2.1.0
      */
     public PassphraseKeyDerivation getPassphraseKeyDerivation() {
         return passphraseKeyDerivation;
     }
 
-    /** @see #getPassphraseKeyDerivation() */
+    /** @see #getPassphraseKeyDerivation()
+     * @since 2.1.0 */
     public void setPassphraseKeyDerivation(PassphraseKeyDerivation x) {
         passphraseKeyDerivation = x != null ? x : DEFAULT_PASSPHRASE_KEY_DERIVATION;
     }
 
-    /** @see #setPassphraseKeyDerivation(PassphraseKeyDerivation) */
+    /** @see #setPassphraseKeyDerivation(PassphraseKeyDerivation)
+     * @since 2.1.0 */
     public Encryptor withPassphraseKeyDerivation(PassphraseKeyDerivation x) {
         setPassphraseKeyDerivation(x);
         return this;
@@ -647,17 +677,21 @@ public class Encryptor implements Cloneable {
     /**
      * @return Argon2 parameters when {@link #getPassphraseKeyDerivation()} is
      * {@link PassphraseKeyDerivation#Argon2}. Defaults to {@link Argon2Parameters#GPG_RECOMMENDED}.
+     *
+     * @since 2.1.0
      */
     public Argon2Parameters getArgon2Parameters() {
         return argon2Parameters;
     }
 
-    /** @see #getArgon2Parameters() */
+    /** @see #getArgon2Parameters()
+     * @since 2.1.0 */
     public void setArgon2Parameters(Argon2Parameters x) {
         argon2Parameters = x != null ? x : Argon2Parameters.GPG_RECOMMENDED;
     }
 
-    /** @see #setArgon2Parameters(Argon2Parameters) */
+    /** @see #setArgon2Parameters(Argon2Parameters)
+     * @since 2.1.0 */
     public Encryptor withArgon2Parameters(Argon2Parameters x) {
         setArgon2Parameters(x);
         return this;
@@ -666,6 +700,8 @@ public class Encryptor implements Cloneable {
     /**
      * @return OpenPGP interop profile used to seed algorithm defaults.
      * Defaults to {@link OpenPgpProfile#Classic}.
+     *
+     * @since 2.1.0
      */
     public OpenPgpProfile getOpenPgpProfile() {
         return openPgpProfile;
@@ -674,13 +710,16 @@ public class Encryptor implements Cloneable {
     /**
      * Applies algorithm defaults for the specified profile. Subsequent individual
      * setter calls override profile values.
+     *
+     * @since 2.1.0
      */
     public void setOpenPgpProfile(OpenPgpProfile x) {
         openPgpProfile = x != null ? x : DEFAULT_OPENPGP_PROFILE;
         applyOpenPgpProfileDefaults(openPgpProfile);
     }
 
-    /** @see #setOpenPgpProfile(OpenPgpProfile) */
+    /** @see #setOpenPgpProfile(OpenPgpProfile)
+     * @since 2.1.0 */
     public Encryptor withOpenPgpProfile(OpenPgpProfile x) {
         setOpenPgpProfile(x);
         return this;
@@ -688,6 +727,8 @@ public class Encryptor implements Cloneable {
 
     /**
      * Convenience for {@link #setOpenPgpProfile(OpenPgpProfile)} with {@link OpenPgpProfile#Modern}.
+     *
+     * @since 2.1.0
      */
     public Encryptor withModernDefaults() {
         return withOpenPgpProfile(OpenPgpProfile.Modern);
@@ -699,7 +740,7 @@ public class Encryptor implements Cloneable {
             setEncryptionProtection(EncryptionProtection.Aead);
             setAeadAlgorithm(AeadAlgorithm.Ocb);
             setAeadPacketStyle(AeadPacketStyle.V6);
-            setSigningAlgorithm(HashingAlgorithm.SHA384);
+            setSigningAlgorithm(HashingAlgorithm.SHA512);
             setPassphraseKeyDerivation(PassphraseKeyDerivation.Argon2);
             setArgon2Parameters(Argon2Parameters.GPG_RECOMMENDED);
             setCompressionAlgorithm(CompressionAlgorithm.ZLIB);

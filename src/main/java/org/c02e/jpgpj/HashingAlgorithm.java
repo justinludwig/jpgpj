@@ -20,7 +20,9 @@ public enum HashingAlgorithm {
     SHA384(HashAlgorithmTags.SHA384),
     SHA512(HashAlgorithmTags.SHA512),
     SHA224(HashAlgorithmTags.SHA224),
+    /** @since 2.1.0 */
     SHA3_256(HashAlgorithmTags.SHA3_256),
+    /** @since 2.1.0 */
     SHA3_512(HashAlgorithmTags.SHA3_512);
 
     private final int openPgpTag;
@@ -29,7 +31,10 @@ public enum HashingAlgorithm {
         this.openPgpTag = openPgpTag;
     }
 
-    /** OpenPGP hash algorithm tag (RFC 4880 / RFC 9580). */
+    /** OpenPGP hash algorithm tag (RFC 4880 / RFC 9580).
+     *
+     * @since 2.1.0
+     */
     public int getOpenPgpTag() {
         return openPgpTag;
     }
@@ -37,6 +42,8 @@ public enum HashingAlgorithm {
     /**
      * Resolves a Bouncy Castle / OpenPGP hash tag to the matching enum value,
      * or {@code null} if unknown.
+     *
+     * @since 2.1.0
      */
     public static HashingAlgorithm fromOpenPgpTag(int tag) {
         for (HashingAlgorithm algorithm : values()) {

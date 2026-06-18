@@ -80,9 +80,9 @@ gpg --decrypt --output path/back-to/plaintext.txt path/to/ciphertext.txt.gpg
 
 If something goes wrong with the encryption, signing, decryption, or verification processes, a (Bouncy Castle) `PGPException` instance will be raised. If the problem is an incorrect passphrase, that exception will be a `PassphraseException`. If the problem is none of the supplied keys can decrypt the message, that exception will be a `DecryptionException`. If the problem is none of the supplied keys can verify the message -- or if one of the signatures is invalid -- that exception will be a `VerificationException`.
 
-When encrypting, JPGPJ will attempt to encrypt the message with every encryption key supplied to it, and sign the message with every (usable) signing key supplied to it. Additionally, if a symmetric passphrase is supplied, it will also encrypt the message with a symmetric key derived from that passphrase. By default, JPGPJ will use `AES128` for encryption, `SHA256` for signing, and `ZLIB` for compression; and when encrypting with a symmetric passphrase, use `SHA512` for key derivation, at the maximum work factor. These defaults would look like this if specified as options to the `gpg` command:
+When encrypting, JPGPJ will attempt to encrypt the message with every encryption key supplied to it, and sign the message with every (usable) signing key supplied to it. Additionally, if a symmetric passphrase is supplied, it will also encrypt the message with a symmetric key derived from that passphrase. By default, JPGPJ will use `AES128` for encryption, `SHA512` for signing, and `ZLIB` for compression; and when encrypting with a symmetric passphrase, use `SHA512` for key derivation, at the maximum work factor. These defaults would look like this if specified as options to the `gpg` command:
 ```shell
-gpg --cipher-algo AES --digest-algo SHA256 --compress-algo ZLIB --compress-level 6 \
+gpg --cipher-algo AES --digest-algo SHA512 --compress-algo ZLIB --compress-level 6 \
     --s2k-digest-algo SHA512 --s2k-mode 3 --s2k-count 65011712
 ```
 
@@ -290,7 +290,7 @@ JcaContextHelper.setSecurityProvider(new BouncyCastleFipsProvider());
 
 Alternatively, set the system property `jpgpj.security.provider` to the fully-qualified provider class name. JPGPJ auto-detects whichever single BC stack is present on the classpath.
 
-JPGPJ defaults (AES128, SHA256, SHA512) are suitable for FIPS environments. Legacy algorithms exposed by the API (CAST5, IDEA, MD5, SHA1, etc.) may be rejected in strict FIPS approved mode.
+JPGPJ defaults (AES128, SHA512, SHA512) are suitable for FIPS environments. Legacy algorithms exposed by the API (CAST5, IDEA, MD5, SHA1, etc.) may be rejected in strict FIPS approved mode.
 
 Building from Source
 --------------------

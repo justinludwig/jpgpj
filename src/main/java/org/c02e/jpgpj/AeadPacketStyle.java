@@ -2,6 +2,8 @@ package org.c02e.jpgpj;
 
 /**
  * AEAD packet layout version used when {@link EncryptionProtection#Aead} is selected.
+ *
+ * @since 2.1.0
  */
 public enum AeadPacketStyle {
     /** OpenPGP v5 AEAD packet layout. */
