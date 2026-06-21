@@ -1,7 +1,51 @@
 Java Pretty Good Privacy Jig
 ============================
 
-JPGPJ provides a simple API on top of the [Bouncy Castle](https://www.bouncycastle.org/) Java OpenPGP implementation (which is full and robust implementation of [RFC 4880](https://tools.ietf.org/html/rfc4880), and compatible with other popular PGP implementations such as [GnuPG](https://www.gnupg.org/),  [GPGTools](https://gpgtools.org/), and [Gpg4win](https://www.gpg4win.org/)). The JPGPJ API is limited to file encryption, signing, decryption, and verification; it does not include the ability to generate, update, or sign keys, or to do clearsigning or detached signatures.
+JPGPJ provides a simple API on top of the [Bouncy Castle](https://www.bouncycastle.org/) Java OpenPGP implementation (which is a full and robust implementation of [RFC 4880](https://tools.ietf.org/html/rfc4880), and compatible with other popular PGP implementations such as [GnuPG](https://www.gnupg.org/),  [GPGTools](https://gpgtools.org/), and [Gpg4win](https://www.gpg4win.org/)). The JPGPJ API is limited to file encryption, signing, decryption, and verification; it does not include the ability to generate, update, or sign keys, or to do clearsigning or detached signatures.
+
+**Requirements:** Java 17 or later. Bouncy Castle `jdk18on` 1.84+ (`bcpg-jdk18on`, `bcprov-jdk18on`, `bcutil-jdk18on`).
+
+### Modern OpenPGP (RFC 9580 / GnuPG 2.4+)
+
+JPGPJ 2.1+ supports SHA3 signing, AEAD encryption, Argon2 passphrase key derivation, and a GnuPG-like modern preset:
+
+```java
+// gpg 2.4-style output in one call
+new Encryptor(aliceKey, bobKey).withModernDefaults()
+    .encrypt(plainFile, cipherFile);
+
+// fine-grained control
+new Encryptor(bobPubKey)
+    .setEncryptionProtection(EncryptionProtection.Aead)
+    .setAeadAlgorithm(AeadAlgorithm.Ocb)
+    .setAeadPacketStyle(AeadPacketStyle.V6)
+    .setEncryptionAlgorithm(EncryptionAlgorithm.AES256)
+    .setSigningAlgorithm(HashingAlgorithm.SHA3_512)
+    .setPassphraseKeyDerivation(PassphraseKeyDerivation.Argon2)
+    .setSymmetricPassphraseChars(passphrase)
+    .encrypt(plainIn, cipherOut);
+```
+
+`Decryptor` requires no format configuration — it auto-detects MDC, AEAD, Argon2, and SHA3. Inspect `FileMetadata.getEncryptionDetails()` and `FileMetadata.Signature.getHashAlgorithm()` after decryption.
+
+### Public-key algorithms
+
+JPGPJ uses existing keys only (no key generation). Supported public-key algorithms for signing, verification, encryption, and decryption:
+
+| Algorithm | Signing / verify | Encryption / decrypt | Notes |
+|-----------|------------------|----------------------|-------|
+| **RSA** | Yes | Yes | Default for most legacy keys |
+| **DSA** | Yes | No (sign-only) | Legacy; use a separate RSA/ECDH encryption subkey |
+| **ECDSA** | Yes | Via **ECDH** subkey | Pair with an ECDH encryption subkey on the same keyring |
+| **Ed25519** | Yes (tags 22, 27) | Via **Cv25519/X25519** subkey | Use `HashingAlgorithm.SHA512` for signing |
+
+Recommended hash pairings (not enforced by JPGPJ; Bouncy Castle fails at runtime if invalid):
+
+- RSA / DSA: SHA-256 or SHA-512
+- ECDSA (NIST P-256): SHA-256; P-384: SHA-384; P-521: SHA-512
+- Ed25519: SHA-512 (GnuPG default)
+
+In FIPS-approved mode (`bc-fips`), RSA and AES defaults work; ECDSA and Ed25519 may be unavailable or restricted depending on your FIPS provider configuration.
 
 Here's an example of Alice encrypting and signing a file for Bob:
 ```java
@@ -36,9 +80,9 @@ gpg --decrypt --output path/back-to/plaintext.txt path/to/ciphertext.txt.gpg
 
 If something goes wrong with the encryption, signing, decryption, or verification processes, a (Bouncy Castle) `PGPException` instance will be raised. If the problem is an incorrect passphrase, that exception will be a `PassphraseException`. If the problem is none of the supplied keys can decrypt the message, that exception will be a `DecryptionException`. If the problem is none of the supplied keys can verify the message -- or if one of the signatures is invalid -- that exception will be a `VerificationException`.
 
-When encrypting, JPGPJ will attempt to encrypt the message with every encryption key supplied to it, and sign the message with every (usable) signing key supplied to it. Additionally, if a symmetric passphrase is supplied, it will also encrypt the message with a symmetric key derived from that passphrase. By default, JPGPJ will use `AES128` for encryption, `SHA256` for signing, and `ZLIB` for compression; and when encrypting with a symmetric passphrase, use `SHA512` for key derivation, at the maximum work factor. These defaults would look like this if specified as options to the `gpg` command:
+When encrypting, JPGPJ will attempt to encrypt the message with every encryption key supplied to it, and sign the message with every (usable) signing key supplied to it. Additionally, if a symmetric passphrase is supplied, it will also encrypt the message with a symmetric key derived from that passphrase. By default, JPGPJ will use `AES128` for encryption, `SHA512` for signing, and `ZLIB` for compression; and when encrypting with a symmetric passphrase, use `SHA512` for key derivation, at the maximum work factor. These defaults would look like this if specified as options to the `gpg` command:
 ```shell
-gpg --cipher-algo AES --digest-algo SHA256 --compress-algo ZLIB --compress-level 6 \
+gpg --cipher-algo AES --digest-algo SHA512 --compress-algo ZLIB --compress-level 6 \
     --s2k-digest-algo SHA512 --s2k-mode 3 --s2k-count 65011712
 ```
 
@@ -62,13 +106,13 @@ throws ServletException, IOException {
         );
         // use custom encryption, signing, and compression algorithms
         encryptor.setEncryptionAlgorithm(EncryptionAlgorithm.CAST5);
-        encryptor.setSigningAlgorithm(HashAlgorithm.SHA1);
+        encryptor.setSigningAlgorithm(HashingAlgorithm.SHA1);
         encryptor.setCompressionAlgorithm(CompressionAlgorithm.ZLIB);
         // output with ascii armor
         encryptor.setAsciiArmored(true);
 
         // manipulate Alice's secret key before supplying it to the encryptor
-        Key alice = new new Key(new File("path/to/my/keys/alice-sec.gpg"));
+        Key alice = new Key(new File("path/to/my/keys/alice-sec.gpg"));
         for (Subkey subkey : alice.getSubkeys()) {
             // don't use Alice's encryption subkey
             if (subkey.isForEncryption())
@@ -204,7 +248,7 @@ Add the following dependency to your `pom.xml` file:
 <dependency>
     <groupId>org.c02e.jpgpj</groupId>
     <artifactId>jpgpj</artifactId>
-    <version>1.3</version>
+    <version>2.1.0</version>
 </dependency>
 ```
 
@@ -215,23 +259,45 @@ Add the following dependency to your `build.gradle` file:
 ```gradle
 dependencies {
     ...
-    compile 'org.c02e.jpgpj:jpgpj:1.3'
+    implementation 'org.c02e.jpgpj:jpgpj:2.1.0'
     ...
 }
 ```
 
 ### Manually
 
-Since Bouncy Castle does all the actual crypto, the Bouncy Castle "Provider" and "OpenPGP/BCPG" jars are required. You can download them from the [Bouncy Castle Latest Releases](https://www.bouncycastle.org/latest_releases.html) page (where you specifically want the `bcprov-jdk15on-170.jar` and `bcpg-jdk15on-170.jar` jar files).
+Since Bouncy Castle does all the actual crypto, the Bouncy Castle provider and OpenPGP jars are required. Download them from the [Bouncy Castle Latest Releases](https://www.bouncycastle.org/latest_releases.html) page (`bcprov-jdk18on`, `bcpg-jdk18on`, and `bcutil-jdk18on`, version 1.84 or later).
 
-Bouncy Castle is the only dependency of JPGPJ, however, so you only need to add its jar files, and the JPGPJ jar file, to your classpath.
+Bouncy Castle is the only dependency of JPGPJ, so you only need its jar files and the JPGPJ jar on your classpath.
+
+### Bouncy Castle FIPS
+
+For FIPS 140-3 certified deployments, use the Bouncy Castle FIPS artifact set instead of the standard jars:
+
+- `bc-fips` and `bcutil-fips` (provider)
+- `bcpg-fips` (OpenPGP)
+
+**Standard and FIPS Bouncy Castle jars must not coexist in the same JVM.**
+
+Before any JPGPJ operation, install the FIPS provider:
+
+```java
+import org.bouncycastle.jcajce.provider.BouncyCastleFipsProvider;
+import org.c02e.jpgpj.JcaContextHelper;
+
+JcaContextHelper.setSecurityProvider(new BouncyCastleFipsProvider());
+```
+
+Alternatively, set the system property `jpgpj.security.provider` to the fully-qualified provider class name. JPGPJ auto-detects whichever single BC stack is present on the classpath.
+
+JPGPJ defaults (AES128, SHA512, SHA512) are suitable for FIPS environments. Legacy algorithms exposed by the API (CAST5, IDEA, MD5, SHA1, etc.) may be rejected in strict FIPS approved mode.
 
 Building from Source
 --------------------
 
 Assuming you have git installed on your system, you can get the source from GitHub with the following command:
 ```shell
-git checkout https://github.com/justinludwig/jpgpj.git
+git clone https://github.com/justinludwig/jpgpj.git
 ```
 This will create a `jpgpj` directory, with the source inside.
 
@@ -240,6 +306,14 @@ Inside the `jpgpj` directory, you can run the tests with this command:
 ./gradlew test
 ```
 This will automatically download the right version of gradle for you, and run all the unit tests. You can view the test results at `build/reports/tests/index.html` (open that file in a web browser).
+
+To run [PIT](https://pitest.org/) mutation testing (about two minutes on a typical laptop):
+
+```shell
+./gradlew pitest
+```
+
+Open `build/reports/pitest/index.html` for the report. PIT forks an isolated JVM that does not inherit Gradle `test` task settings; `TestEnvironmentListener` normalizes `line.separator` before Bouncy Castle initializes.
 
 You can build the JPGPJ jar with this command:
 ```shell

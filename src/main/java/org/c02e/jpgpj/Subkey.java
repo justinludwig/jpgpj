@@ -181,7 +181,10 @@ public class Subkey implements Cloneable {
                algorithm == PublicKeyAlgorithmTags.RSA_SIGN ||
                algorithm == PublicKeyAlgorithmTags.DSA ||
                algorithm == PublicKeyAlgorithmTags.ECDSA ||
-               algorithm == PublicKeyAlgorithmTags.EDDSA;
+               algorithm == PublicKeyAlgorithmTags.EDDSA ||
+               algorithm == PublicKeyAlgorithmTags.EDDSA_LEGACY ||
+               algorithm == PublicKeyAlgorithmTags.Ed25519 ||
+               algorithm == PublicKeyAlgorithmTags.Ed448;
     }
 
     /** True if technically usable for encryption. */
