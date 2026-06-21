@@ -107,6 +107,13 @@ publishing {
                         url = 'https://opensource.org/licenses/MIT'
                     }
                 }
+                developers {
+                    developer {
+                        id = 'justinludwig'
+                        name = 'Justin Ludwig'
+                        email = 'justin@ldwg.us'
+                    }
+                }
                 scm {
                     connection = 'scm:git:git@github.com:justinludwig/jpgpj.git'
                     developerConnection = 'scm:git:git@github.com:justinludwig/jpgpj.git'
@@ -115,9 +122,15 @@ publishing {
             }
         }
     }
+    repositories {
+        maven {
+            url = layout.buildDirectory.dir('repo')
+        }
+    }
 }
 
 signing {
+    useGpgCmd()
     required = { gradle.taskGraph.hasTask('publish') }
     sign publishing.publications.maven
 }
