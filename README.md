@@ -3,7 +3,7 @@ Java Pretty Good Privacy Jig
 
 JPGPJ provides a simple API on top of the [Bouncy Castle](https://www.bouncycastle.org/) Java OpenPGP implementation (which is a full and robust implementation of [RFC 4880](https://tools.ietf.org/html/rfc4880), and compatible with other popular PGP implementations such as [GnuPG](https://www.gnupg.org/),  [GPGTools](https://gpgtools.org/), and [Gpg4win](https://www.gpg4win.org/)). The JPGPJ API is limited to file encryption, signing, decryption, and verification; it does not include the ability to generate, update, or sign keys, or to do clearsigning or detached signatures.
 
-**Requirements:** Java 17 or later. Bouncy Castle `jdk18on` 1.84+ (`bcpg-jdk18on`, `bcprov-jdk18on`, `bcutil-jdk18on`).
+**Requirements:** Java 17 or later. Bouncy Castle `jdk18on` 1.86+ (`bcpg-jdk18on`, `bcprov-jdk18on`, `bcutil-jdk18on`).
 
 ### Modern OpenPGP (RFC 9580 / GnuPG 2.4+)
 
@@ -248,7 +248,7 @@ Add the following dependency to your `pom.xml` file:
 <dependency>
     <groupId>org.c02e.jpgpj</groupId>
     <artifactId>jpgpj</artifactId>
-    <version>2.1.0</version>
+    <version>2.1.1</version>
 </dependency>
 ```
 
@@ -259,7 +259,7 @@ Add the following dependency to your `build.gradle` file:
 ```gradle
 dependencies {
     ...
-    implementation 'org.c02e.jpgpj:jpgpj:2.1.0'
+    implementation 'org.c02e.jpgpj:jpgpj:2.1.1'
     ...
 }
 ```

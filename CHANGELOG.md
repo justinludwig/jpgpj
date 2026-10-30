@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.1.1 - 2026-10-30
+
+### Changed
+
+- Bouncy Castle artifacts updated from `jdk15on:1.84` to `jdk18on:1.86` & `bc-fips:2.0.0` to `bc-fips:2.0.2`.
+
 ## 2.1.0 - 2026-06-20
 
 ### Added

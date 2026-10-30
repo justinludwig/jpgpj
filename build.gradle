@@ -7,7 +7,7 @@ plugins {
 }
 
 group = 'org.c02e.jpgpj'
-version = '2.1.0'
+version = '2.1.1'
 description = 'Java Pretty Good Privacy Jig'
 
 java {
@@ -34,9 +34,9 @@ configurations {
 }
 
 dependencies {
-    api 'org.bouncycastle:bcpg-jdk18on:1.84'
-    api 'org.bouncycastle:bcprov-jdk18on:1.84'
-    implementation 'org.bouncycastle:bcutil-jdk18on:1.84'
+    api 'org.bouncycastle:bcpg-jdk18on:1.86'
+    api 'org.bouncycastle:bcprov-jdk18on:1.86'
+    implementation 'org.bouncycastle:bcutil-jdk18on:1.86'
     api 'org.slf4j:slf4j-api:2.0.17'
 
     testImplementation platform('org.junit:junit-bom:5.11.4')
@@ -44,7 +44,7 @@ dependencies {
     testImplementation 'org.junit.platform:junit-platform-launcher'
     testRuntimeOnly 'org.slf4j:slf4j-simple:2.0.17'
 
-    fipsConflictTestRuntime 'org.bouncycastle:bc-fips:2.0.0'
+    fipsConflictTestRuntime 'org.bouncycastle:bc-fips:2.0.2'
 }
 
 tasks.named('test') {
